@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -e
+
+help() {
+    cat <<EOF
+Usage: gh notify [--flags]
+
+EOF
+}
+
+get_notif() {
+    gh api -X GET https://api.github.com/notifications --cache=5m \
+    --template '
+    {{- range . -}}
+        {{- printf "%s: %s\t" .subject.type .subject.title -}}
+        {{- .subject.url | printf "%s" | color "green" -}}
+    {{- end -}}'
+}
+
+get_notif
