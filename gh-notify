@@ -1,20 +1,62 @@
 #!/usr/bin/env bash
 set -e
 
+GREEN='\033[0;32m'
+BLUE='\033[1;34m'
+GRAY='\033[0;30m'
+NC='\033[0m'
+
 help() {
     cat <<EOF
 Usage: gh notify [--flags]
 
+Show unread GitHub notifications.
+
+Flags:
+    -h      print this help message
+    -n      max number of notifications to show (default 30)
+    -p      boolean flag to only participating or mention notifications
+    -a      boolean flag to include read notifications
 EOF
 }
 
-get_notif() {
-    gh api -X GET https://api.github.com/notifications --cache=5m \
+
+a_flag=''
+p_flag=''
+n_flag='30'
+
+while getopts 'n:r' flag; do
+  case "${flag}" in
+    n) n_flag="${OPTARG}" ;;
+    a) a_flag='false' ;;
+    p) p_flag='false' ;;
+    *) help 
+       exit 1 ;;
+  esac
+done
+
+get_notifs() {
+    gh api -X GET https://api.github.com/notifications --cache=30s \
+    -f per_page="$n_flag" -f all="$a_flag" -f participating="$p_flag" \
     --template '
     {{- range . -}}
-        {{- printf "%s: %s\t" .subject.type .subject.title -}}
-        {{- .subject.url | printf "%s" | color "green" -}}
+        {{- if .subject.url }}{{ printf "%s\t" .subject.url }}
+        {{- else }}{{ printf "%s\t" .reason }}{{ end -}}
+        {{- printf "%s\t%s\t%s\t" .updated_at .subject.type .subject.title -}} 
+        {{- if .repository }}{{ printf "%s\n" .repository.full_name }}{{ end -}}
     {{- end -}}'
 }
 
-get_notif
+print_notifs() {
+    local url timestamp type title repo time
+    get_notifs | while IFS=$'\t' read -r url timestamp type title repo; do
+        time="${timestamp%Z}"
+        if [[ $type == "Discussion" ]]; then
+            printf "${GRAY}%s${NC}\t${BLUE}%s${NC}\t%s %s\t%s\n" "$time" "$repo" "$type" "$url" "$title" 
+        else
+            printf "${GRAY}%s${NC}\t${BLUE}%s${NC}\t%s ${GREEN}#%s${NC}\t%s\n" "$time" "$repo" "$type" "${url##*/}" "$title" 
+        fi
+    done | column -t -s$'\t'
+}
+
+print_notifs | less
