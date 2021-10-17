@@ -13,7 +13,6 @@ Usage: gh notify [--flags]
 Show unread GitHub notifications.
 
 Flags:
-    -h      print this help message
     -n      max number of notifications to show (default 30)
     -p      boolean flag to only participating or mention notifications
     -a      boolean flag to include read notifications
@@ -21,15 +20,17 @@ EOF
 }
 
 
-a_flag=''
-p_flag=''
+a_flag='false'
+p_flag='false'
 n_flag='30'
 
-while getopts 'n:r' flag; do
+while getopts 'n:pah' flag; do
   case "${flag}" in
+    h) help
+       exit 0 ;;
     n) n_flag="${OPTARG}" ;;
-    a) a_flag='false' ;;
-    p) p_flag='false' ;;
+    a) a_flag='true' ;;
+    p) p_flag='true' ;;
     *) help 
        exit 1 ;;
   esac
