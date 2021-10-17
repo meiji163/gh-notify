@@ -1,4 +1,4 @@
-# gh-branch 
+# gh Notification Extension
 
 [GitHub CLI](https://github.com/cli/cli) extension to display GitHub notifications
 
