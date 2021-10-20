@@ -1,26 +1,30 @@
-# gh Notification Extension
+# GitHub CLI Notification Extension 
 
-[GitHub CLI](https://github.com/cli/cli) extension to display GitHub notifications
+[gh](https://github.com/cli/cli) extension to interact with GitHub notifications.
 
 ## Install
 ```
 gh extension install meiji163/gh-notify
 ```
 
-## Options 
+Install [fzf](https://github.com/junegunn/fzf) for interactive mode.
 
+## Usage 
 ```
 Usage: gh notify [--flags]
 
-Show unread GitHub notifications.
+View and search and GitHub notifications.
+Select a pull request or issue to get more info on it.
 
 Flags:
+    -s      print a static display
     -n      max number of notifications to show (default 30)
     -p      boolean flag to only participating or mention notifications
     -a      boolean flag to include read notifications
 ```
 
+![demo](https://i.imgur.com/Lv308LC.gif)
+
 ## TODO
-- improve notification display
-- interactive scrolling/selection
 - mark notifications as (un)read
+- add interaction for discussion threads, actions, etc. 
