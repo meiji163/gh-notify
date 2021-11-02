@@ -19,8 +19,8 @@ Select a pull request or issue to get more info on it.
 Flags:
     -s      print a static display
     -n      max number of notifications to show (default 30)
-    -p      boolean flag to only participating or mention notifications
-    -a      boolean flag to include read notifications
+    -p      show only participating or mention notifications
+    -a      include all notifications including read 
 ```
 
 ![demo](https://i.imgur.com/Lv308LC.gif)
