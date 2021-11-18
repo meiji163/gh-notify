@@ -40,7 +40,7 @@ while getopts 'n:pahs' flag; do
 done
 
 get_notifs() {
-    gh api -X GET https://api.github.com/notifications --cache=1m \
+    gh api -X GET /notifications --cache=1m \
     -f per_page="$n_flag" -f all="$a_flag" -f participating="$p_flag" \
     --template '
     {{- range . -}}
