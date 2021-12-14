@@ -92,12 +92,12 @@ gh_info() {
     esac
 }
 
-if ! type -p fzf >/dev/null; then
-  echo "error: install \`fzf\` or use the -s flag" >&2
-  exit 1
-fi
 
 if [[ $s_flag == "false" ]]; then
+    if ! type -p fzf >/dev/null; then
+      echo "error: install \`fzf\` or use the -s flag" >&2
+      exit 1
+    fi
     select_notif | gh_info 
 else
     print_notifs
