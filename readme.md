@@ -11,20 +11,20 @@ Install [fzf](https://github.com/junegunn/fzf) for interactive mode.
 
 ## Usage 
 ```
+> gh notify # view notifs
+> gh notify -r # mark notifs as read
+> gh notify -h # help info 
 Usage: gh notify [--flags]
 
-View and search and GitHub notifications.
+View and search and GitHub notifications. 
 Select a pull request or issue to get more info on it.
 
 Flags:
+    -a      include all notifications 
+    -r      mark all notifications as read 
     -s      print a static display
-    -n      max number of notifications to show (default 30)
     -p      show only participating or mention notifications
-    -a      include all notifications including read 
+    -n      max number of notifications to show (default 30)
 ```
 
 ![demo](https://i.imgur.com/Lv308LC.gif)
-
-## TODO
-- mark notifications as (un)read
-- add interaction for discussion threads, actions, etc. 

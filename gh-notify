@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -e -o pipefail
 
 GREEN='\033[0;32m'
 BLUE='\033[1;34m'
@@ -14,24 +14,27 @@ View and search and GitHub notifications.
 Select a pull request or issue to get more info on it.
 
 Flags:
+    -a      include all notifications 
+    -r      mark all notifications as read 
     -s      print a static display
-    -n      max number of notifications to show (default 30)
     -p      show only participating or mention notifications
-    -a      include all notifications including read 
+    -n      max number of notifications to show (default 30)
 EOF
 }
 
 a_flag='false'
 p_flag='false'
 s_flag='false'
+r_flag='false'
 n_flag='30'
 
-while getopts 'n:pahs' flag; do
+while getopts 'n:pahsr' flag; do
   case "${flag}" in
     n) n_flag="${OPTARG}" ;;
     a) a_flag='true' ;;
     p) p_flag='true' ;;
     s) s_flag='true' ;;
+    r) r_flag='true' ;;
     h) help
        exit 0 ;;
     *) help 
@@ -40,7 +43,7 @@ while getopts 'n:pahs' flag; do
 done
 
 get_notifs() {
-    gh api -X GET /notifications --cache=1m \
+    gh api -X GET /notifications --cache=20s \
     -f per_page="$n_flag" -f all="$a_flag" -f participating="$p_flag" \
     --template '
     {{- range . -}}
@@ -74,6 +77,10 @@ select_notif() {
     fzf --ansi <<< "$notifs"
 }
 
+mark_notifs_read() {
+    gh api -X PUT /notifications -F read=true --silent 
+}
+
 gh_info() {
     local repo type num
     read _ _ repo type num _
@@ -92,6 +99,10 @@ gh_info() {
     esac
 }
 
+if [[ $r_flag == "true" ]]; then
+    mark_notifs_read
+    exit 0
+fi
 
 if [[ $s_flag == "false" ]]; then
     if ! type -p fzf >/dev/null; then
