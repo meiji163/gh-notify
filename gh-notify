@@ -15,6 +15,8 @@ Select a pull request or issue to get more info on it.
 
 Flags:
     -a      include all notifications
+    -e      exclude notifications matching a string
+    -f      filter to only notifications matching a string
     -n      max number of notifications to show (default 30)
     -p      show only participating or mention notifications
     -r      mark all notifications as read
@@ -27,10 +29,14 @@ only_participating_flag='false'
 print_static_flag='false'
 mark_read_flag='false'
 num_notifications='30'
+exclusion_string='XXX_BOGUS_STRING_THAT_SHOULD_NOT_EXIST_XXX'
+filter_string=''
 
-while getopts 'n:pahsr' flag; do
+while getopts 'e:f:n:pahsr' flag; do
   case "${flag}" in
     n) num_notifications="${OPTARG}" ;;
+    e) exclusion_string="${OPTARG}" ;;
+    f) filter_string="${OPTARG}" ;;
     a) include_all_flag='true' ;;
     p) only_participating_flag='true' ;;
     s) print_static_flag='true' ;;
@@ -70,9 +76,13 @@ print_notifs() {
     done | column -t -s$'\t'
 }
 
+filtered_notifs() {
+    print_notifs | grep -v "$exclusion_string" | grep "$filter_string"
+}
+
 select_notif() {
     local notifs 
-    notifs="$(print_notifs)"
+    notifs="$(filtered_notifs)"
     [ -n "$notifs" ] || exit 0 
     fzf --ansi <<< "$notifs"
 }
@@ -111,5 +121,5 @@ if [[ $print_static_flag == "false" ]]; then
     fi
     select_notif | gh_info 
 else
-    print_notifs
+    filtered_notifs
 fi
