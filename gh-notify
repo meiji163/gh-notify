@@ -16,11 +16,15 @@ Select a pull request or issue to get more info on it.
 Flags:
     -a      include all notifications
     -e      exclude notifications matching a string
+            Ex. gh notify -e "MyDayJob"
     -f      filter to only notifications matching a string
+            Ex. gh notify -f "CoolRepo"
     -n      max number of notifications to show (default 30)
     -p      show only participating or mention notifications
     -r      mark all notifications as read
     -s      print a static display
+
+Note: -e and -f both support GNU regular expressions.
 EOF
 }
 
