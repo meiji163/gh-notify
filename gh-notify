@@ -14,27 +14,37 @@ View and search and GitHub notifications.
 Select a pull request or issue to get more info on it.
 
 Flags:
-    -a      include all notifications 
-    -r      mark all notifications as read 
-    -s      print a static display
-    -p      show only participating or mention notifications
+    -a      include all notifications
+    -e      exclude notifications matching a string
+            Ex. gh notify -e "MyDayJob"
+    -f      filter to only notifications matching a string
+            Ex. gh notify -f "CoolRepo"
     -n      max number of notifications to show (default 30)
+    -p      show only participating or mention notifications
+    -r      mark all notifications as read
+    -s      print a static display
+
+Note: -e and -f both support GNU regular expressions.
 EOF
 }
 
-a_flag='false'
-p_flag='false'
-s_flag='false'
-r_flag='false'
-n_flag='30'
+include_all_flag='false'
+only_participating_flag='false'
+print_static_flag='false'
+mark_read_flag='false'
+num_notifications='30'
+exclusion_string='XXX_BOGUS_STRING_THAT_SHOULD_NOT_EXIST_XXX'
+filter_string=''
 
-while getopts 'n:pahsr' flag; do
+while getopts 'e:f:n:pahsr' flag; do
   case "${flag}" in
-    n) n_flag="${OPTARG}" ;;
-    a) a_flag='true' ;;
-    p) p_flag='true' ;;
-    s) s_flag='true' ;;
-    r) r_flag='true' ;;
+    n) num_notifications="${OPTARG}" ;;
+    e) exclusion_string="${OPTARG}" ;;
+    f) filter_string="${OPTARG}" ;;
+    a) include_all_flag='true' ;;
+    p) only_participating_flag='true' ;;
+    s) print_static_flag='true' ;;
+    r) mark_read_flag='true' ;;
     h) help
        exit 0 ;;
     *) help 
@@ -44,7 +54,7 @@ done
 
 get_notifs() {
     gh api -X GET /notifications --cache=20s \
-    -f per_page="$n_flag" -f all="$a_flag" -f participating="$p_flag" \
+    -f per_page="$num_notifications" -f all="$include_all_flag" -f participating="$only_participating_flag" \
     --template '
     {{- range . -}}
         {{- printf "%s\t%s\t%s\t%s\t" .reason .updated_at .subject.type .subject.title -}} 
@@ -70,9 +80,13 @@ print_notifs() {
     done | column -t -s$'\t'
 }
 
+filtered_notifs() {
+    print_notifs | grep -v "$exclusion_string" | grep "$filter_string"
+}
+
 select_notif() {
     local notifs 
-    notifs="$(print_notifs)"
+    notifs="$(filtered_notifs)"
     [ -n "$notifs" ] || exit 0 
     fzf --ansi <<< "$notifs"
 }
@@ -99,17 +113,17 @@ gh_info() {
     esac
 }
 
-if [[ $r_flag == "true" ]]; then
+if [[ $mark_read_flag == "true" ]]; then
     mark_notifs_read
     exit 0
 fi
 
-if [[ $s_flag == "false" ]]; then
+if [[ $print_static_flag == "false" ]]; then
     if ! type -p fzf >/dev/null; then
       echo "error: install \`fzf\` or use the -s flag" >&2
       exit 1
     fi
     select_notif | gh_info 
 else
-    print_notifs
+    filtered_notifs
 fi
