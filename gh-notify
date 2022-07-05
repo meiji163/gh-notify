@@ -19,12 +19,15 @@ Flags:
             Ex. gh notify -e "MyDayJob"
     -f      filter to only notifications matching a string
             Ex. gh notify -f "CoolRepo"
-    -n      max number of notifications to show (default 30)
+    -n      max number of notifications to show (capped at 100)
+            Not specifying will retrieve all notifications.
     -p      show only participating or mention notifications
     -r      mark all notifications as read
     -s      print a static display
 
 Note: -e and -f both support GNU regular expressions.
+      -n limits the number in the 1st page of results
+         and happens before -e or -f are applied
 EOF
 }
 
@@ -32,7 +35,7 @@ include_all_flag='false'
 only_participating_flag='false'
 print_static_flag='false'
 mark_read_flag='false'
-num_notifications='30'
+num_notifications='0'
 exclusion_string='XXX_BOGUS_STRING_THAT_SHOULD_NOT_EXIST_XXX'
 filter_string=''
 
@@ -53,8 +56,19 @@ while getopts 'e:f:n:pahsr' flag; do
 done
 
 get_notifs() {
+    page_num=$1
+    if [ "$page_num" == "" ]; then
+        page_num=1
+    fi
+    local_page_size=100
+    if [ "$num_notifications" != "0" ]; then
+        local_page_size=$num_notifications
+        echo "$local_page_size" > temp.txt
+        echo ""
+    fi
+    >&2 printf "." # "marching ants" because sometimes this takes a bit.
     gh api -X GET /notifications --cache=20s \
-    -f per_page="$num_notifications" -f all="$include_all_flag" -f participating="$only_participating_flag" \
+    -f per_page="$local_page_size" -f all="$include_all_flag" -f participating="$only_participating_flag" -f page="$page_num" \
     --template '
     {{- range . -}}
         {{- printf "%s\t%s\t%s\t%s\t" .reason .updated_at .subject.type .subject.title -}} 
@@ -64,20 +78,52 @@ get_notifs() {
 }
 
 print_notifs() {
-    local reason timestamp type title repo url 
-    get_notifs | while IFS=$'\t' read -r reason timestamp type title repo url; do
-        time="${timestamp:5:11}" 
-        case "$type" in 
-            "PullRequest" | "Issue" ) 
-                printf "${GRAY}%s${NC}\t${BLUE}%s${NC}\t%s ${GREEN}#%s${NC}\t%s\n" \
-                    "${time/T/ }" "${repo}" "${type}" "${url##*/}" "${title}" 
-                ;;
-            *)
-                printf "${GRAY}%s${NC}\t${BLUE}%s${NC}\t%s \t%s\n" \
-                    "${time/T/ }" "${repo}" "${type}" "${title}" 
-                ;;
-        esac
-    done | column -t -s$'\t'
+    local reason timestamp type title repo url
+    all_notifs=""
+    page_num=1
+    while :
+    do # infinite loop
+          page=$(get_notifs $page_num)
+          if [ "$page" == "" ]; then
+              break
+          else
+              page_num=$((page_num + 1))
+          fi
+          new_notifs=$(echo "$page" \
+              | while IFS=$'\t' read -r reason timestamp type title repo url; do
+                    time="${timestamp:5:11}"
+                    case "$type" in
+                        "PullRequest" | "Issue" )
+                            printf "${GRAY}%s${NC}\t${BLUE}%s${NC}\t%s ${GREEN}#%s${NC}\t%s\n" \
+                                "${time/T/ }" "${repo}" "${type}" "${url##*/}" "${title}"
+                            ;;
+                        *)
+                            printf "${GRAY}%s${NC}\t${BLUE}%s${NC}\t%s \t%s\n" \
+                                "${time/T/ }" "${repo}" "${type}" "${title}"
+                            ;;
+                    esac
+                done | column -t -s$'\t')
+          all_notifs="$all_notifs
+$new_notifs"
+          # this is going to be a bit funky.
+          # if you specify a number larger than 100
+          # GitHub will ignore it and give you only 100
+          if [ "$num_notifications" != "0" ]; then
+             break
+          fi
+    done
+    # clear the dots we printed
+    >&2 echo -e "\r\033[K"
+    # the different pages frequently come back with different
+    # column widths.
+    # If we insert a tab before the notification type
+    # and recolumnize on that everything works out.
+    echo "$all_notifs" \
+        | sed -e "s/ Issue / \tIssue /" \
+              -e "s/ PullRequest / \tPullRequest /" \
+              -e "s/ Commit / \tCommit /" \
+              -e "s/ Release / \tRelease /" \
+        | column -t -s $'\t'
 }
 
 filtered_notifs() {
@@ -85,9 +131,9 @@ filtered_notifs() {
 }
 
 select_notif() {
-    local notifs 
+    local notifs
     notifs="$(filtered_notifs)"
-    [ -n "$notifs" ] || exit 0 
+    [ -n "$notifs" ] || exit 0
     fzf --ansi <<< "$notifs"
 }
 
