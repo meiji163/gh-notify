@@ -63,8 +63,6 @@ get_notifs() {
     local_page_size=100
     if [ "$num_notifications" != "0" ]; then
         local_page_size=$num_notifications
-        echo "$local_page_size" > temp.txt
-        echo ""
     fi
     >&2 printf "." # "marching ants" because sometimes this takes a bit.
     gh api -X GET /notifications --cache=20s \
