@@ -88,9 +88,9 @@ print_notifs() {
           break
       else
           page_num=$((page_num + 1))
-        fi
-        new_notifs=`
-        echo "$page" | while IFS=$'\t' read -r timestamp type title repo url; do
+      fi
+      new_notifs=`
+      echo "$page" | while IFS=$'\t' read -r timestamp type title repo url; do
             time="${timestamp:5:11}"
             case "$type" in
                 "PullRequest" | "Issue")
@@ -102,7 +102,7 @@ print_notifs() {
                         "${time/T/ }" "${repo}" "${type}" "${title}"
                     ;;
             esac
-        done`
+      done`
       all_notifs="$all_notifs $new_notifs"
       # this is going to be a bit funky.
       # if you specify a number larger than 100
