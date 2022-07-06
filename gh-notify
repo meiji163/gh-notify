@@ -71,46 +71,45 @@ get_notifs() {
     -f per_page="$local_page_size" -f all="$include_all_flag" -f participating="$only_participating_flag" -f page="$page_num" \
     --template '
     {{- range . -}}
-        {{- printf "%s\t%s\t%s\t%s\t" .reason .updated_at .subject.type .subject.title -}} 
+        {{- printf "%s\t%s\t%s\t" .updated_at .subject.type .subject.title -}} 
         {{- printf "%s\t" .repository.full_name -}}
         {{- printf "%s\n" .subject.url -}}
     {{- end -}}'
 }
 
+
 print_notifs() {
-    local reason timestamp type title repo url
+    local timestamp type title repo url
     all_notifs=""
     page_num=1
-    while :
-    do # infinite loop
-          page=$(get_notifs $page_num)
-          if [ "$page" == "" ]; then
-              break
-          else
-              page_num=$((page_num + 1))
-          fi
-          new_notifs=$(echo "$page" \
-              | while IFS=$'\t' read -r reason timestamp type title repo url; do
-                    time="${timestamp:5:11}"
-                    case "$type" in
-                        "PullRequest" | "Issue" )
-                            printf "${GRAY}%s${NC}\t${BLUE}%s${NC}\t%s ${GREEN}#%s${NC}\t%s\n" \
-                                "${time/T/ }" "${repo}" "${type}" "${url##*/}" "${title}"
-                            ;;
-                        *)
-                            printf "${GRAY}%s${NC}\t${BLUE}%s${NC}\t%s \t%s\n" \
-                                "${time/T/ }" "${repo}" "${type}" "${title}"
-                            ;;
-                    esac
-                done | column -t -s$'\t')
-          all_notifs="$all_notifs
-$new_notifs"
-          # this is going to be a bit funky.
-          # if you specify a number larger than 100
-          # GitHub will ignore it and give you only 100
-          if [ "$num_notifications" != "0" ]; then
-             break
-          fi
+    while true; do
+      page=$(get_notifs $page_num)
+      if [ "$page" == "" ]; then
+          break
+      else
+          page_num=$((page_num + 1))
+        fi
+        new_notifs=`
+        echo "$page" | while IFS=$'\t' read -r timestamp type title repo url; do
+            time="${timestamp:5:11}"
+            case "$type" in
+                "PullRequest" | "Issue")
+                    printf "${GRAY}%s${NC}\t${BLUE}%s${NC}\t%s ${GREEN}#%s${NC}\t%s\n" \
+                        "${time/T/ }" "${repo}" "${type}" "${url##*/}" "${title}"
+                    ;;
+                *)
+                    printf "${GRAY}%s${NC}\t${BLUE}%s${NC}\t%s \t%s\n" \
+                        "${time/T/ }" "${repo}" "${type}" "${title}"
+                    ;;
+            esac
+        done`
+      all_notifs="$all_notifs $new_notifs"
+      # this is going to be a bit funky.
+      # if you specify a number larger than 100
+      # GitHub will ignore it and give you only 100
+      if [ "$num_notifications" != "0" ]; then
+          break
+      fi
     done
     # clear the dots we printed
     >&2 echo -e "\r\033[K"
