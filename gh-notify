@@ -10,11 +10,12 @@ help() {
     cat <<EOF
 Usage: gh notify [--flags]
 
-View and search and GitHub notifications. 
+View and search and GitHub notifications.
 Select a pull request or issue to get more info on it.
 
 Flags:
     -a      include all notifications
+    -o      open the notification in your browser
     -e      exclude notifications matching a string
             Ex. gh notify -e "MyDayJob"
     -f      filter to only notifications matching a string
@@ -32,6 +33,7 @@ EOF
 }
 
 include_all_flag='false'
+open_browser_view='false'
 only_participating_flag='false'
 print_static_flag='false'
 mark_read_flag='false'
@@ -39,20 +41,25 @@ num_notifications='0'
 exclusion_string='XXX_BOGUS_STRING_THAT_SHOULD_NOT_EXIST_XXX'
 filter_string=''
 
-while getopts 'e:f:n:pahsr' flag; do
-  case "${flag}" in
+while getopts 'e:f:n:paohsr' flag; do
+    case "${flag}" in
     n) num_notifications="${OPTARG}" ;;
     e) exclusion_string="${OPTARG}" ;;
     f) filter_string="${OPTARG}" ;;
     a) include_all_flag='true' ;;
+    o) open_browser_view='true' ;;
     p) only_participating_flag='true' ;;
     s) print_static_flag='true' ;;
     r) mark_read_flag='true' ;;
-    h) help
-       exit 0 ;;
-    *) help 
-       exit 1 ;;
-  esac
+    h)
+        help
+        exit 0
+        ;;
+    *)
+        help
+        exit 1
+        ;;
+    esac
 done
 
 get_notifs() {
@@ -64,17 +71,16 @@ get_notifs() {
     if [ "$num_notifications" != "0" ]; then
         local_page_size=$num_notifications
     fi
-    >&2 printf "." # "marching ants" because sometimes this takes a bit.
+    printf >&2 "." # "marching ants" because sometimes this takes a bit.
     gh api -X GET /notifications --cache=20s \
-    -f per_page="$local_page_size" -f all="$include_all_flag" -f participating="$only_participating_flag" -f page="$page_num" \
-    --template '
+        -f per_page="$local_page_size" -f all="$include_all_flag" -f participating="$only_participating_flag" -f page="$page_num" \
+        --template '
     {{- range . -}}
-        {{- printf "%s\t%s\t%s\t" .updated_at .subject.type .subject.title -}} 
+        {{- printf "%s\t%s\t%s\t" .updated_at .subject.type .subject.title -}}
         {{- printf "%s\t" .repository.full_name -}}
         {{- printf "%s\n" .subject.url -}}
     {{- end -}}'
 }
-
 
 print_notifs() {
     local timestamp type title repo url
@@ -131,17 +137,27 @@ select_notif() {
     local notifs
     notifs="$(filtered_notifs)"
     [ -n "$notifs" ] || exit 0
-    fzf --ansi <<< "$notifs"
+    fzf --ansi <<<"$notifs"
 }
 
 mark_notifs_read() {
-    gh api -X PUT /notifications -F read=true --silent 
+    gh api -X PUT /notifications -F read=true --silent
 }
 
 gh_info() {
     local repo type num
-    read _ _ repo type num _
-    case $type in
+    read -r _ _ repo type num _
+    if [[ $open_browser_view == "true" ]]; then
+        case $type in
+        "PullRequest" | "Issue")
+            gh browse "${num#\#}" -R "${repo}"
+            ;;
+        *)
+            gh browse -R "${repo}"
+            ;;
+        esac
+    else
+        case $type in
         "PullRequest")
             gh pr view "${num#\#}" -R "${repo}"
             ;;
@@ -151,9 +167,10 @@ gh_info() {
         "Release")
             gh release view -R "${repo}"
             ;;
-        *)
-            ;;
-    esac
+        *) ;;
+
+        esac
+    fi
 }
 
 if [[ $mark_read_flag == "true" ]]; then
@@ -163,10 +180,10 @@ fi
 
 if [[ $print_static_flag == "false" ]]; then
     if ! type -p fzf >/dev/null; then
-      echo "error: install \`fzf\` or use the -s flag" >&2
-      exit 1
+        echo "error: install \`fzf\` or use the -s flag" >&2
+        exit 1
     fi
-    select_notif | gh_info 
+    select_notif | gh_info
 else
     filtered_notifs
 fi

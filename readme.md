@@ -1,4 +1,4 @@
-# GitHub CLI Notification Extension 
+# GitHub CLI Notification Extension
 
 [gh](https://github.com/cli/cli) extension to interact with GitHub notifications.
 
@@ -9,11 +9,11 @@ gh extension install meiji163/gh-notify
 
 Install [fzf](https://github.com/junegunn/fzf) for interactive mode.
 
-## Usage 
+## Usage
 ```
-> gh notify # view notifs
-> gh notify -r # mark notifs as read
-> gh notify -h # help info 
+> gh notify # view notifications
+> gh notify -r # mark notifications as read
+> gh notify -h # help info
 Usage: gh notify [--flags]
 
 View and search and GitHub notifications.
@@ -21,6 +21,7 @@ Select a pull request or issue to get more info on it.
 
 Flags:
     -a      include all notifications
+    -o      open the notification in your browser
     -e      exclude notifications matching a string
             Ex. gh notify -e "MyDayJob"
     -f      filter to only notifications matching a string
