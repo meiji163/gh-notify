@@ -73,7 +73,8 @@ get_notifs() {
     {{- range . -}}
         {{- printf "%s\t%s\t%s\t" (timefmt "02/Jan/06" .updated_at | color "gray+h") .subject.type .subject.title -}}
         {{- printf "%s\t" (.repository.full_name | color "blue+b") -}}
-        {{- printf "%s\n" (.subject.url | color "green") }}
+        {{- if eq .subject.type "Release" -}} {{- printf "%s\n" ("✓" | color "green") -}}
+        {{- else -}} {{- printf "%s\n" (.subject.url | color "green") -}} {{- end -}}
     {{- end -}}'
 }
 
