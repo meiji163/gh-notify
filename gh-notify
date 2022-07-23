@@ -72,7 +72,7 @@ get_notifs() {
         -f per_page="$local_page_size" -f all="$include_all_flag" -f participating="$only_participating_flag" -f page="$page_num" \
         --template '
     {{- range . -}}
-        {{- printf "%s\t%s\t%s\t" (timefmt "02/Jan/06" .updated_at | color "gray+h") .subject.type .subject.title -}}
+        {{- printf "%s\t%s\t%s\t" (timefmt "02/Jan 15:04" .updated_at | color "gray+h") .subject.type .subject.title -}}
         {{- printf "%s\t" (.repository.full_name | color "blue+b") -}}
         {{- if eq .subject.type "Release" -}} {{- printf "%s\n" ("✓" | color "green") -}}
         {{- else -}} {{- printf "%s\n" (.subject.url | color "green") -}} {{- end -}}
@@ -94,7 +94,7 @@ print_notifs() {
             echo "$page" | while IFS=$'\t' read -r timefmt type title repo url; do
                 # "${variable//search/replace}" keep the green color but remove everything between http and the very last slash symbol
                 # https://wiki.bash-hackers.org/syntax/pe
-                printf "%s\t%s\t%s %s\t%s\n" "${timefmt}" "${repo}" "${type}" "${url/http*\//#}" "${title}"
+                printf "\n%s\t%s\t%s %s\t%s\n" "${timefmt}" "${repo}" "${type}" "${url/http*\//#}" "${title}"
             done
         )
         all_notifs="$all_notifs$new_notifs"
@@ -136,7 +136,7 @@ mark_notifs_read() {
 
 gh_info() {
     local repo type num
-    read -r _ repo type num _
+    read -r _ _ repo type num _
     if [[ $open_browser_view == "true" ]]; then
         case $type in
         "PullRequest" | "Issue")
