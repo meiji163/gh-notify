@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
 set -e -o pipefail
 
-GREEN='\033[0;32m'
-BLUE='\033[1;34m'
-GRAY='\033[0;30m'
-NC='\033[0m'
-
 help() {
     cat <<EOF
 Usage: gh notify [--flags]
@@ -72,61 +67,56 @@ get_notifs() {
         local_page_size=$num_notifications
     fi
     printf >&2 "." # "marching ants" because sometimes this takes a bit.
+    # timefmt must use the reference time Mon Jan 2 15:04:05 MST 2006 to format a given time
     gh api -X GET /notifications --cache=20s \
         -f per_page="$local_page_size" -f all="$include_all_flag" -f participating="$only_participating_flag" -f page="$page_num" \
         --template '
     {{- range . -}}
-        {{- printf "%s\t%s\t%s\t" .updated_at .subject.type .subject.title -}}
-        {{- printf "%s\t" .repository.full_name -}}
-        {{- printf "%s\n" .subject.url -}}
+        {{- printf "%s\t%s\t%s\t" (timefmt "02/Jan 15:04" .updated_at | color "gray+h") .subject.type .subject.title -}}
+        {{- printf "%s\t" (.repository.full_name | color "blue+b") -}}
+        {{- if eq .subject.type "Release" -}} {{- printf "%s\n" ("✓" | color "green") -}}
+        {{- else -}} {{- printf "%s\n" (.subject.url | color "green") -}} {{- end -}}
     {{- end -}}'
 }
 
 print_notifs() {
-    local timestamp type title repo url
+    local timefmt type title repo url
     all_notifs=""
     page_num=1
     while true; do
-      page=$(get_notifs $page_num)
-      if [ "$page" == "" ]; then
-          break
-      else
-          page_num=$((page_num + 1))
-      fi
-      new_notifs=`
-      echo "$page" | while IFS=$'\t' read -r timestamp type title repo url; do
-            time="${timestamp:5:11}"
-            case "$type" in
-                "PullRequest" | "Issue")
-                    printf "${GRAY}%s${NC}\t${BLUE}%s${NC}\t%s ${GREEN}#%s${NC}\t%s\n" \
-                        "${time/T/ }" "${repo}" "${type}" "${url##*/}" "${title}"
-                    ;;
-                *)
-                    printf "${GRAY}%s${NC}\t${BLUE}%s${NC}\t%s \t%s\n" \
-                        "${time/T/ }" "${repo}" "${type}" "${title}"
-                    ;;
-            esac
-      done`
-      all_notifs="$all_notifs $new_notifs"
-      # this is going to be a bit funky.
-      # if you specify a number larger than 100
-      # GitHub will ignore it and give you only 100
-      if [ "$num_notifications" != "0" ]; then
-          break
-      fi
+        page=$(get_notifs $page_num)
+        if [ "$page" == "" ]; then
+            break
+        else
+            page_num=$((page_num + 1))
+        fi
+        new_notifs=$(
+            echo "$page" | while IFS=$'\t' read -r timefmt type title repo url; do
+                # "${variable//search/replace}" keep the green color but remove everything between http and the very last slash symbol
+                # https://wiki.bash-hackers.org/syntax/pe
+                printf "\n%s\t%s\t%s %s\t%s\n" "${timefmt}" "${repo}" "${type}" "${url/http*\//#}" "${title}"
+            done
+        )
+        all_notifs="$all_notifs$new_notifs"
+        # this is going to be a bit funky.
+        # if you specify a number larger than 100
+        # GitHub will ignore it and give you only 100
+        if [ "$num_notifications" != "0" ]; then
+            break
+        fi
     done
     # clear the dots we printed
-    >&2 echo -e "\r\033[K"
+    echo >&2 -e "\r\033[K"
     # the different pages frequently come back with different
     # column widths.
     # If we insert a tab before the notification type
     # and recolumnize on that everything works out.
-    echo "$all_notifs" \
-        | sed -e "s/ Issue / \tIssue /" \
-              -e "s/ PullRequest / \tPullRequest /" \
-              -e "s/ Commit / \tCommit /" \
-              -e "s/ Release / \tRelease /" \
-        | column -t -s $'\t'
+    echo "$all_notifs" |
+        sed -e "s/ Issue / \tIssue /" \
+            -e "s/ PullRequest / \tPullRequest /" \
+            -e "s/ Commit / \tCommit /" \
+            -e "s/ Release / \tRelease /" |
+        column -t -s $'\t'
 }
 
 filtered_notifs() {
@@ -168,7 +158,6 @@ gh_info() {
             gh release view -R "${repo}"
             ;;
         *) ;;
-
         esac
     fi
 }
