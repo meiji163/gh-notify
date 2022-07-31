@@ -68,7 +68,7 @@ get_notifs() {
     fi
     printf >&2 "." # "marching ants" because sometimes this takes a bit.
     # timefmt must use the reference time Mon Jan 2 15:04:05 MST 2006 to format a given time
-    gh api -X GET /notifications --cache=20s \
+    gh api -X GET notifications --cache=20s \
         -f per_page="$local_page_size" -f all="$include_all_flag" -f participating="$only_participating_flag" -f page="$page_num" \
         --template '
     {{- range . -}}
@@ -131,7 +131,7 @@ select_notif() {
 }
 
 mark_notifs_read() {
-    gh api -X PUT /notifications -F read=true --silent
+    gh api -X PUT notifications -F read=true --silent
 }
 
 gh_info() {
