@@ -136,7 +136,7 @@ select_notif() {
     # See the man page (man fzf) for an explanation of the arguments.
     GH_FORCE_TTY=50% fzf --ansi --exact --no-multi --reverse --header-first --info=inline \
         --header "$fzf_header_description" \
-        --margin 2 --border --color 'border:#778899' --preview-window wrap:hidden:40%:up:border-bottom \
+        --margin 2% --border --color 'border:#778899' --preview-window wrap:hidden:40%:up:border-bottom \
         --bind '?:toggle-preview' \
         --preview "if grep -qo Issue <<< {}; then gh issue view {5} -R {3}; elif grep -qo PullRequest <<<{}; then gh pr view {5} -R {3}; else echo \"Move Along, Nothing To See.\"; fi" <<<"$notifs"
 }
