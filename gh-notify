@@ -134,7 +134,7 @@ select_notif() {
     fi
     # GH_FORCE_TTY enable terminal-style output even when the output is redirected.
     # See the man page (man fzf) for an explanation of the arguments.
-    GH_FORCE_TTY=50% fzf --ansi --exact --no-multi --reverse --header-first --info=inline \
+    GH_FORCE_TTY=50% fzf --ansi --no-multi --reverse --header-first --info=inline \
         --header "$fzf_header_description" \
         --margin 2% --border --color 'border:#778899' --preview-window wrap:hidden:40%:up:border-bottom \
         --bind '?:toggle-preview' \
