@@ -130,7 +130,7 @@ select_notif() {
     # GH_FORCE_TTY enable terminal-style output even when the output is redirected.
     # See the man page (man fzf) for an explanation of the arguments.
     # TODO: Release types without a tag name show only the information about the latest release.
-    GH_FORCE_TTY=50% fzf --ansi --no-multi --reverse --info=inline \
+    GH_FORCE_TTY=50% fzf --ansi --no-multi --reverse --info=inline --header-first \
         --header "ENTER - View | CTRL+B - Browser view | ? - Toggle preview | CTRL+W/S Preview up/down" \
         --margin 2% --border --color "border:#778899" \
         --preview-window wrap:"$preview_window_visibility":50%:right:border-left \

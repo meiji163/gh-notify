@@ -21,7 +21,7 @@ Select a pull request or issue to get more info on it.
 
 Flags:
     -a      include all notifications
-    -w      display the`fzf` preview window (default: hidden)
+    -w      display the fzf preview window (default: hidden)
     -e      exclude notifications matching a string
             Ex. gh notify -e "MyDayJob"
     -f      filter to only notifications matching a string
