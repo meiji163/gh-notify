@@ -10,7 +10,7 @@ Select a pull request or issue to get more info on it.
 
 Flags:
     -a      include all notifications
-    -o      open the notification in your browser
+    -w      display the fzf preview window (default: hidden)
     -e      exclude notifications matching a string
             Ex. gh notify -e "MyDayJob"
     -f      filter to only notifications matching a string
@@ -28,7 +28,7 @@ EOF
 }
 
 include_all_flag='false'
-open_browser_view='false'
+preview_window_visibility='hidden'
 only_participating_flag='false'
 print_static_flag='false'
 mark_read_flag='false'
@@ -36,13 +36,13 @@ num_notifications='0'
 exclusion_string='XXX_BOGUS_STRING_THAT_SHOULD_NOT_EXIST_XXX'
 filter_string=''
 
-while getopts 'e:f:n:paohsr' flag; do
+while getopts 'e:f:n:pawhsr' flag; do
     case "${flag}" in
     n) num_notifications="${OPTARG}" ;;
     e) exclusion_string="${OPTARG}" ;;
     f) filter_string="${OPTARG}" ;;
     a) include_all_flag='true' ;;
-    o) open_browser_view='true' ;;
+    w) preview_window_visibility='nohidden' ;;
     p) only_participating_flag='true' ;;
     s) print_static_flag='true' ;;
     r) mark_read_flag='true' ;;
@@ -124,22 +124,19 @@ filtered_notifs() {
 }
 
 select_notif() {
-    local notifs fzf_header_description
+    local notifs
     notifs="$(filtered_notifs)"
     [ -n "$notifs" ] || exit 0
-
-    fzf_header_description="Press Enter to view the notification. (? Toggle preview)"
-    if [[ $open_browser_view == "true" ]]; then
-        fzf_header_description="Press Enter to open the notification in your browser. (? Toggle preview)"
-    fi
     # GH_FORCE_TTY enable terminal-style output even when the output is redirected.
     # See the man page (man fzf) for an explanation of the arguments.
     # TODO: Release types without a tag name show only the information about the latest release.
-    GH_FORCE_TTY=50% fzf --ansi --no-multi --reverse --header-first --info=inline \
-        --header "$fzf_header_description" \
-        --margin 2% --border --color 'border:#778899' \
-        --preview-window wrap:hidden:40%:up:border-bottom \
-        --bind '?:toggle-preview' \
+    GH_FORCE_TTY=50% fzf --ansi --no-multi --reverse --info=inline \
+        --header "ENTER - View | CTRL+B - Browser view | ? - Toggle preview | CTRL+W/S Preview up/down" \
+        --margin 2% --border --color "border:#778899" \
+        --preview-window wrap:"$preview_window_visibility":50%:right:border-left \
+        --bind "?:toggle-preview" \
+        --bind "ctrl-w:preview-up,ctrl-s:preview-down" \
+        --bind "ctrl-b:execute-silent:(if grep -q Issue <<<{4}; then gh issue view {5} -wR {3}; elif grep -q PullRequest <<<{4}; then gh pr view {5} -wR {3}; elif grep -q Release <<<{4}; then gh release view -wR {3}; else gh repo view -w {3}; fi)" \
         --preview "echo \[{4}\] ;if grep -q Issue <<<{4}; then gh issue view {5} -R {3}; elif grep -q PullRequest <<<{4}; then gh pr view {5} -R {3}; elif grep -q Release <<<{4}; then gh release view -R {3}; else echo {}; fi" <<<"$notifs"
 }
 
@@ -150,29 +147,18 @@ mark_notifs_read() {
 gh_info() {
     local repo type num
     read -r _ _ repo type num _
-    if [[ $open_browser_view == "true" ]]; then
-        case $type in
-        "PullRequest" | "Issue")
-            gh browse "${num#\#}" -R "${repo}"
-            ;;
-        *)
-            gh browse -R "${repo}"
-            ;;
-        esac
-    else
-        case $type in
-        "PullRequest")
-            gh pr view "${num#\#}" -R "${repo}" --comments
-            ;;
-        "Issue")
-            gh issue view "${num#\#}" -R "${repo}" --comments
-            ;;
-        "Release")
-            gh release view -R "${repo}"
-            ;;
-        *) ;;
-        esac
-    fi
+    case $type in
+    "PullRequest")
+        gh pr view "${num#\#}" -R "${repo}" --comments
+        ;;
+    "Issue")
+        gh issue view "${num#\#}" -R "${repo}" --comments
+        ;;
+    "Release")
+        gh release view -R "${repo}"
+        ;;
+    *) ;;
+    esac
 }
 
 if [[ $mark_read_flag == "true" ]]; then
