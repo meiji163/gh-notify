@@ -34,4 +34,4 @@ Flags:
 Note: -e and -f both support GNU regular expressions.
 ```
 
-![demo](https://i.imgur.com/Lv308LC.gif)
+![demo](https://user-images.githubusercontent.com/92653266/185198672-6ae90682-b891-4fc4-b51e-0efbce427b46.gif)
