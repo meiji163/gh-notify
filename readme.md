@@ -16,12 +16,12 @@ Install [fzf](https://github.com/junegunn/fzf) for interactive mode.
 > gh notify -h # help info
 Usage: gh notify [--flags]
 
-View and search and GitHub notifications.
+View and search GitHub notifications.
 Select a pull request or issue to get more info on it.
 
 Flags:
     -a      include all notifications
-    -o      open the notification in your browser
+    -w      display the fzf preview window (default: hidden)
     -e      exclude notifications matching a string
             Ex. gh notify -e "MyDayJob"
     -f      filter to only notifications matching a string
@@ -34,4 +34,4 @@ Flags:
 Note: -e and -f both support GNU regular expressions.
 ```
 
-![demo](https://i.imgur.com/Lv308LC.gif)
+![demo](https://user-images.githubusercontent.com/92653266/185198672-6ae90682-b891-4fc4-b51e-0efbce427b46.gif)
