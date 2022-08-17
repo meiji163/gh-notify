@@ -137,7 +137,7 @@ select_notif() {
         --bind "?:toggle-preview" \
         --bind "ctrl-w:preview-up,ctrl-s:preview-down" \
         --bind "ctrl-b:execute-silent:(if grep -q Issue <<<{4}; then gh issue view {5} -wR {3}; elif grep -q PullRequest <<<{4}; then gh pr view {5} -wR {3}; elif grep -q Release <<<{4}; then gh release view -wR {3}; else gh repo view -w {3}; fi)" \
-        --preview "echo \[{4}\] ;if grep -q Issue <<<{4}; then gh issue view {5} -R {3}; elif grep -q PullRequest <<<{4}; then gh pr view {5} -R {3}; elif grep -q Release <<<{4}; then gh release view -R {3}; else echo {}; fi" <<<"$notifs"
+        --preview 'echo \[{4}\] ;if grep -q Issue <<<{4}; then gh issue view {5} -R {3}; elif grep -q PullRequest <<<{4}; then gh pr view {5} -R {3}; elif grep -q Release <<<{4}; then gh release view -R {3}; else echo {} | sed "s/[ ]\\{3,\\}/  /g"; fi' <<<"$notifs"
 }
 
 mark_notifs_read() {
