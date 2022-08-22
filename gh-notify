@@ -5,7 +5,7 @@ help() {
     cat <<EOF
 Usage: gh notify [--flags]
 
-View and search and GitHub notifications.
+View and search GitHub notifications.
 Select a pull request or issue to get more info on it.
 
 Flags:
@@ -123,46 +123,78 @@ filtered_notifs() {
     print_notifs | grep -v "$exclusion_string" | grep "$filter_string"
 }
 
+fzf_help() {
+    cat <<EOF
+Hotkey Map
+
+ENTER     -  Print Notification and Exit
+TAB       -  Preview Notification
+CTRL+B    -  Open in Browser
+CTRL+U/D  -  Preview Up/Down
+CTRL+W/S  -  Preview Up/Down (half a page steps)
+CTRL+X    -  Write a Comment using the Editor
+ESC       -  Exit
+
+Set your Editor
+e.g. Visual Studio Code or Vim
+gh config set editor \"code --wait\"
+gh config set editor vim
+EOF
+}
+
+Open_notification_browser='if grep -qE "Issue|PullRequest" <<<{4}; then gh issue view {5} -wR {3}; elif grep -q Release <<<{4}; then gh release view -wR {3}; else gh repo view -w {3}; fi'
+Preview_notification='echo \[{1} {2} - {4}\] ;if grep -q Issue <<<{4}; then gh issue view {5} -R {3} --comments; elif grep -q PullRequest <<<\"{4}\"; then gh pr view {5} -R {3} --comments; elif grep -q Release <<<{4}; then gh release view -R {3}; else echo {} | sed "s/[ ]\\{3,\\}/  /g"; fi'
+
 select_notif() {
-    local notifs
+    local notifs selection key repo type num
     notifs="$(filtered_notifs)"
     [ -n "$notifs" ] || exit 0
-    # GH_FORCE_TTY enable terminal-style output even when the output is redirected.
+    # Enable terminal-style output even when the output is redirected.
+    export GH_FORCE_TTY=100%
     # See the man page (man fzf) for an explanation of the arguments.
     # TODO: Release types without a tag name show only the information about the latest release.
-    GH_FORCE_TTY=50% fzf --ansi --no-multi --reverse --info=inline --header-first \
-        --header "ENTER - View | CTRL+B - Browser view | ? - Toggle preview | CTRL+W/S Preview up/down" \
-        --margin 2% --border --color "border:#778899" \
+    selection=$(fzf <<<"$notifs" --ansi --no-multi --reverse --info=inline \
+        --margin 2%,1%,2%,1% --pointer='▶' \
+        --border top --color "border:#778899" \
+        --header $'? - Toggle Help\n\n' --color 'header:italic:dim' \
+        --header-first --bind "change:first" \
+        --bind "?:toggle-preview+change-preview:printf \"%s\n\n\n%s\" \"$(fzf_help)\" \"$(help)\"" \
+        --bind "ctrl-u:preview-up,ctrl-d:preview-down" \
+        --bind "ctrl-w:preview-half-page-up,ctrl-s:preview-half-page-down" \
+        --bind "ctrl-b:execute-silent:$Open_notification_browser" \
+        --bind "tab:toggle-preview+change-preview:$Preview_notification" \
         --preview-window wrap:"$preview_window_visibility":50%:right:border-left \
-        --bind "?:toggle-preview" \
-        --bind "ctrl-w:preview-up,ctrl-s:preview-down" \
-        --bind "ctrl-b:execute-silent:(if grep -q Issue <<<{4}; then gh issue view {5} -wR {3}; elif grep -q PullRequest <<<{4}; then gh pr view {5} -wR {3}; elif grep -q Release <<<{4}; then gh release view -wR {3}; else gh repo view -w {3}; fi)" \
-        --preview 'echo \[{4}\] ;if grep -q Issue <<<{4}; then gh issue view {5} -R {3}; elif grep -q PullRequest <<<{4}; then gh pr view {5} -R {3}; elif grep -q Release <<<{4}; then gh release view -R {3}; else echo {} | sed "s/[ ]\\{3,\\}/  /g"; fi' <<<"$notifs"
-}
+        --preview "$Preview_notification" \
+        --expect "enter,ctrl-x" | tr '\n' ' ')
 
-mark_notifs_read() {
-    gh api -X PUT notifications -F read=true --silent
-}
-
-gh_info() {
-    local repo type num
-    read -r _ _ repo type num _
-    case $type in
-    "PullRequest")
-        gh pr view "${num#\#}" -R "${repo}" --comments
+    # Hotkey actions that close fzf are defined below
+    read -r key _ _ repo type num _ <<<"$selection"
+    [[ -n "$key" ]] && case "$key" in
+    enter)
+        # Disable the gh pager
+        export GH_PAGER="cat"
+        if grep -q "Issue" <<<"$type"; then
+            gh issue view "$num" -R "$repo" --comments
+        elif grep -q "PullRequest" <<<"$type"; then
+            gh pr view "$num" -R "$repo" --comments
+        elif grep -q "Release" <<<"$type"; then
+            gh release view -R "$repo"
+        else
+            echo "Notification preview for $type is not supported."
+        fi
         ;;
-    "Issue")
-        gh issue view "${num#\#}" -R "${repo}" --comments
+    ctrl-x)
+        if grep -qE "Issue|PullRequest" <<<"$type"; then
+            gh issue comment "${num}" -R "$repo"
+        else
+            echo "Writing comments for $type is not supported."
+        fi
         ;;
-    "Release")
-        gh release view -R "${repo}"
-        ;;
-    *) ;;
     esac
 }
 
 if [[ $mark_read_flag == "true" ]]; then
-    mark_notifs_read
+    gh api -X PUT notifications -F read=true --silent
     exit 0
 fi
 
@@ -171,7 +203,7 @@ if [[ $print_static_flag == "false" ]]; then
         echo "error: install \`fzf\` or use the -s flag" >&2
         exit 1
     fi
-    select_notif | gh_info
+    select_notif
 else
     filtered_notifs
 fi
