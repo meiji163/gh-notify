@@ -123,9 +123,8 @@ filtered_notifs() {
     print_notifs | grep -v "$exclusion_string" | grep "$filter_string"
 }
 
-Open_notification_browser='if grep -qE "Issue|PullRequest" <<<{4}; then gh issue view {5} -wR {3}; elif grep -q Release <<<{4}; then gh release view -wR {3}; else gh repo view -w {3}; fi'
-Preview_notification='echo \[{4}\] ;if grep -q Issue <<<{4}; then gh issue view {5} -R {3} --comments; elif grep -q PullRequest <<<\"{4}\"; then gh pr view {5} -R {3} --comments; elif grep -q Release <<<{4}; then gh release view -R {3}; else echo {} | sed "s/[ ]\\{3,\\}/  /g"; fi'
-Preview_hotkey_map='cat <<<"
+fzf_help() {
+    cat <<EOF
 Hotkey Map
 
 ENTER     -  Print Notification and Exit
@@ -138,8 +137,13 @@ ESC       -  Exit
 
 Set your Editor
 e.g. Visual Studio Code or Vim
-gh config set editor code --wait
-gh config set editor vim"'
+gh config set editor \"code --wait\"
+gh config set editor vim
+EOF
+}
+
+Open_notification_browser='if grep -qE "Issue|PullRequest" <<<{4}; then gh issue view {5} -wR {3}; elif grep -q Release <<<{4}; then gh release view -wR {3}; else gh repo view -w {3}; fi'
+Preview_notification='echo \[{4}\] ;if grep -q Issue <<<{4}; then gh issue view {5} -R {3} --comments; elif grep -q PullRequest <<<\"{4}\"; then gh pr view {5} -R {3} --comments; elif grep -q Release <<<{4}; then gh release view -R {3}; else echo {} | sed "s/[ ]\\{3,\\}/  /g"; fi'
 
 select_notif() {
     local notifs selection key repo type num
@@ -152,16 +156,16 @@ select_notif() {
     selection=$(fzf <<<"$notifs" --ansi --no-multi --reverse --info=inline \
         --margin 2%,1%,2%,1% --pointer='▶' \
         --border top --color "border:#778899" \
-        --header $'? - Toggle Hotkey Map\n\n' --color 'header:italic:dim' \
+        --header $'? - Toggle Help\n\n' --color 'header:italic:dim' \
         --header-first --bind "change:first" \
-        --bind "?:toggle-preview+change-preview:$Preview_hotkey_map" \
+        --bind "?:toggle-preview+change-preview:printf \"%s\n\n\n%s\" \"$(fzf_help)\" \"$(help)\"" \
         --bind "ctrl-u:preview-up,ctrl-d:preview-down" \
         --bind "ctrl-w:preview-half-page-up,ctrl-s:preview-half-page-down" \
         --bind "ctrl-b:execute-silent:$Open_notification_browser" \
         --bind "tab:toggle-preview+change-preview:$Preview_notification" \
         --preview-window wrap:"$preview_window_visibility":50%:right:border-left \
         --preview "$Preview_notification" \
-        --expect=enter,ctrl-x | tr '\n' ' ')
+        --expect "enter,ctrl-x" | tr '\n' ' ')
 
     # Hotkey actions that close fzf are defined below
     read -r key _ _ repo type num _ <<<"$selection"
