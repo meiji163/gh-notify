@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -e -o pipefail
 
+Args="$*"
 help() {
     cat <<EOF
 Usage: gh notify [--flags]
@@ -74,13 +75,15 @@ get_notifs() {
     {{- range . -}}
         {{- printf "%s\t%s\t%s\t" (timefmt "02/Jan 15:04" .updated_at | color "gray+h") .subject.type .subject.title -}}
         {{- printf "%s\t" (.repository.full_name | color "blue+b") -}}
-        {{- if eq .subject.type "Release" -}} {{- printf "%s\n" ("✓" | color "green") -}}
-        {{- else -}} {{- printf "%s\n" (.subject.url | color "green") -}} {{- end -}}
+        {{- if eq .subject.type "Release" -}} {{- printf "%s\t" ("✓" | color "green") -}}
+        {{- else -}} {{- printf "%s\t" (.subject.url | color "green") -}} {{- end -}}
+        {{- if .unread -}} {{- printf "%s\n" ("●" | color "magenta") -}}
+        {{- else -}} {{- printf "%s\n" (" " | color "magenta") -}} {{- end -}}
     {{- end -}}'
 }
 
 print_notifs() {
-    local timefmt type title repo url
+    local timefmt type title repo url unread
     all_notifs=""
     page_num=1
     while true; do
@@ -91,10 +94,10 @@ print_notifs() {
             page_num=$((page_num + 1))
         fi
         new_notifs=$(
-            echo "$page" | while IFS=$'\t' read -r timefmt type title repo url; do
+            echo "$page" | while IFS=$'\t' read -r timefmt type title repo url unread; do
                 # "${variable//search/replace}" keep the green color but remove everything between http and the very last slash symbol
                 # https://wiki.bash-hackers.org/syntax/pe
-                printf "\n%s\t%s\t%s %s\t%s\n" "${timefmt}" "${repo}" "${type}" "${url/http*\//#}" "${title}"
+                printf "\n%s\t%s\t%s %s %s\t%s\n" "${timefmt}" "${repo}" "${type}" "${url/http*\//#}" "${unread}" "${title}"
             done
         )
         all_notifs="$all_notifs$new_notifs"
@@ -130,6 +133,7 @@ Hotkey Map
 ENTER     -  Print Notification and Exit
 TAB       -  Preview Notification
 CTRL+B    -  Open in Browser
+CTRL+M    -  Mark all Notifications as read
 CTRL+U/D  -  Preview Up/Down
 CTRL+W/S  -  Preview Up/Down (half a page steps)
 CTRL+X    -  Write a Comment using the Editor
@@ -165,7 +169,7 @@ select_notif() {
         --bind "tab:toggle-preview+change-preview:$Preview_notification" \
         --preview-window wrap:"$preview_window_visibility":50%:right:border-left \
         --preview "$Preview_notification" \
-        --expect "enter,ctrl-x" | tr '\n' ' ')
+        --expect "enter,ctrl-m,ctrl-x" | tr '\n' ' ')
 
     # Hotkey actions that close fzf are defined below
     read -r key _ _ repo type num _ <<<"$selection"
@@ -182,6 +186,10 @@ select_notif() {
         else
             echo "Notification preview for $type is not supported."
         fi
+        ;;
+    ctrl-m)
+        gh api -X PUT notifications -F read=true --silent
+        gh notify "$Args"
         ;;
     ctrl-x)
         if grep -qE "Issue|PullRequest" <<<"$type"; then
