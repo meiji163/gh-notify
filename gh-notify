@@ -143,7 +143,7 @@ EOF
 }
 
 Open_notification_browser='if grep -qE "Issue|PullRequest" <<<{4}; then gh issue view {5} -wR {3}; elif grep -q Release <<<{4}; then gh release view -wR {3}; else gh repo view -w {3}; fi'
-Preview_notification='echo \[{4}\] ;if grep -q Issue <<<{4}; then gh issue view {5} -R {3} --comments; elif grep -q PullRequest <<<\"{4}\"; then gh pr view {5} -R {3} --comments; elif grep -q Release <<<{4}; then gh release view -R {3}; else echo {} | sed "s/[ ]\\{3,\\}/  /g"; fi'
+Preview_notification='echo \[{1} {2} - {4}\] ;if grep -q Issue <<<{4}; then gh issue view {5} -R {3} --comments; elif grep -q PullRequest <<<\"{4}\"; then gh pr view {5} -R {3} --comments; elif grep -q Release <<<{4}; then gh release view -R {3}; else echo {} | sed "s/[ ]\\{3,\\}/  /g"; fi'
 
 select_notif() {
     local notifs selection key repo type num
