@@ -26,8 +26,9 @@ Flag   | Description
 
 HotKey   | Description
 -------- | -------------
+?        | toggle help
+tab      | toggle preview notification
 enter    | print notification and exit
-tab      | preview notification
 shift+↑↓ | scroll the preview up/ down
 ctrl+b   | open notification in browser
 ctrl+r   | mark all notifications as read and exit
@@ -175,6 +176,8 @@ select_notif() {
         fi
         ;;
     ctrl-r)
+        # TODO Dynamically update the input list without restarting fzf
+        # --bind 'ctrl-m:execute(gh api ...)+reload(...)'
         gh api -X PUT notifications -F read=true --silent
         ;;
     ctrl-x)

@@ -14,8 +14,6 @@ Install the [Fuzzy Finder (fzf)](https://github.com/junegunn/fzf#installation) f
 
 ![demo](https://user-images.githubusercontent.com/92653266/186245012-46560f5f-e44f-45fe-8f71-86009c61305f.gif)
 
-### Flags
-
 ```
 gh notify [-Flag]
 ```
@@ -37,8 +35,9 @@ gh notify [-Flag]
 
 | HotKey   | Description                              |
 | -------- | ---------------------------------------- |
+| ?        | toggle help                              |
+| tab      | toggle preview notification              |
 | enter    | print notification and exit              |
-| tab      | preview notification                     |
 | shift+↑↓ | scroll the preview up/ down              |
 | ctrl+b   | open notification in browser             |
 | ctrl+r   | mark all notifications as read and exit  |
@@ -48,7 +47,7 @@ gh notify [-Flag]
 ## Customizations
 
 ### Fuzzy Finder (fzf)
-Customize fzf colors and key bindings by exporting `ENVIRONMENT VARIABLES` to your `.zshrc`/`.bashrc`. See the man page (`man fzf`) or the [fzf README](https://github.com/junegunn/fzf#environment-variables) on GitHub for more details.
+Customize fzf colors and key bindings by exporting `ENVIRONMENT VARIABLES` to your `.zshrc`/`.bashrc`. See the man page (`man fzf`) or [junegunn/fzf#environment-variables](https://github.com/junegunn/fzf#environment-variables) on GitHub for more details.
 
 ```zsh
 # ~/.zshrc
@@ -58,7 +57,7 @@ export FZF_DEFAULT_OPTS="
 ```
 
 ### GitHub command line tool (gh)
-In the configuration file of the `gh` tool you can set your preferred editor. This is handy when you use the interactive mode to write a comment on a message.
+In the configuration file of the `gh` tool you can set your preferred editor. This is handy when you use the interactive mode to write a comment on a notification.
 
 ```zsh
 # See more details
