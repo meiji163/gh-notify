@@ -2,28 +2,38 @@
 set -e -o pipefail
 
 help() {
+    # IMPORTANT: keep it synchronized with the README, but without the Examples
+    # Leave one line empty at the beginning and end, and two between sections. Looks better
     cat <<EOF
-Usage: gh notify [--flags]
 
-View and search GitHub notifications.
-Select a pull request or issue to get more info on it.
+    gh notify [-Flag]
 
-Flags:
-    -a      include all notifications
-    -w      display the fzf preview window (default: hidden)
-    -e      exclude notifications matching a string
-            Ex. gh notify -e "MyDayJob"
-    -f      filter to only notifications matching a string
-            Ex. gh notify -f "CoolRepo"
-    -n      max number of notifications to show (capped at 100)
-            Not specifying will retrieve all notifications.
-    -p      show only participating or mention notifications
-    -r      mark all notifications as read
-    -s      print a static display
+Flag   | Description
+------ | --------------------------------------------------------------------
+<none> | show all unread notifications
+-a     | show all (read/ unread) notifications
+-r     | mark all notifications as read
+-e     | exclude notifications matching a string (regular expression support)
+-f     | filter the search to a specific user (regular expression support)
+-s     | print a static display
+-n     | max number of notifications to show (default 30)
+-p     | show only participating or mentioned notifications
+-w     | display the preview window in interactive mode (default hidden)
+-h     | show the help page
 
-Note: -e and -f both support GNU regular expressions.
-      -n limits the number in the 1st page of results
-         and happens before -e or -f are applied
+
+    Interactive mode with Fuzzy Finder (fzf)
+
+HotKey   | Description
+-------- | ----------------------------------------
+enter    | print notification and exit
+tab      | preview notification
+shift+↑↓ | scroll the preview up/ down
+ctrl+b   | open notification in browser
+ctrl+r   | mark all notifications as read and exit
+ctrl+x   | write a comment with the editor and exit
+esc      | exit
+
 EOF
 }
 
@@ -68,19 +78,22 @@ get_notifs() {
     fi
     printf >&2 "." # "marching ants" because sometimes this takes a bit.
     # timefmt must use the reference time Mon Jan 2 15:04:05 MST 2006 to format a given time
+    # Empty strings are colorized to keep the columns in line.
     gh api -X GET notifications --cache=20s \
         -f per_page="$local_page_size" -f all="$include_all_flag" -f participating="$only_participating_flag" -f page="$page_num" \
         --template '
     {{- range . -}}
         {{- printf "%s\t%s\t%s\t" (timefmt "02/Jan 15:04" .updated_at | color "gray+h") .subject.type .subject.title -}}
         {{- printf "%s\t" (.repository.full_name | color "blue+b") -}}
-        {{- if eq .subject.type "Release" -}} {{- printf "%s\n" ("✓" | color "green") -}}
-        {{- else -}} {{- printf "%s\n" (.subject.url | color "green") -}} {{- end -}}
+        {{- if eq .subject.type "Release" -}} {{- printf "%s\t" ("✓" | color "green") -}}
+        {{- else -}} {{- printf "%s\t" (.subject.url | color "green") -}} {{- end -}}
+        {{- if .unread -}} {{- printf "%s\n" ("●" | color "magenta") -}}
+        {{- else -}} {{- printf "%s\n" (" " | color "magenta") -}} {{- end -}}
     {{- end -}}'
 }
 
 print_notifs() {
-    local timefmt type title repo url
+    local timefmt type title repo url unread
     all_notifs=""
     page_num=1
     while true; do
@@ -91,10 +104,10 @@ print_notifs() {
             page_num=$((page_num + 1))
         fi
         new_notifs=$(
-            echo "$page" | while IFS=$'\t' read -r timefmt type title repo url; do
+            echo "$page" | while IFS=$'\t' read -r timefmt type title repo url unread; do
                 # "${variable//search/replace}" keep the green color but remove everything between http and the very last slash symbol
                 # https://wiki.bash-hackers.org/syntax/pe
-                printf "\n%s\t%s\t%s %s\t%s\n" "${timefmt}" "${repo}" "${type}" "${url/http*\//#}" "${title}"
+                printf "\n%s\t%s\t%s %s %s\t%s\n" "${timefmt}" "${repo}" "${type}" "${url/http*\//#}" "${unread}" "${title}"
             done
         )
         all_notifs="$all_notifs$new_notifs"
@@ -123,32 +136,12 @@ filtered_notifs() {
     print_notifs | grep -v "$exclusion_string" | grep "$filter_string"
 }
 
-fzf_help() {
-    cat <<EOF
-Hotkey Map
-
-ENTER     -  Print Notification and Exit
-TAB       -  Preview Notification
-CTRL+B    -  Open in Browser
-CTRL+U/D  -  Preview Up/Down
-CTRL+W/S  -  Preview Up/Down (half a page steps)
-CTRL+X    -  Write a Comment using the Editor
-ESC       -  Exit
-
-Set your Editor
-e.g. Visual Studio Code or Vim
-gh config set editor \"code --wait\"
-gh config set editor vim
-EOF
-}
-
-Open_notification_browser='if grep -qE "Issue|PullRequest" <<<{4}; then gh issue view {5} -wR {3}; elif grep -q Release <<<{4}; then gh release view -wR {3}; else gh repo view -w {3}; fi'
-Preview_notification='echo \[{1} {2} - {4}\] ;if grep -q Issue <<<{4}; then gh issue view {5} -R {3} --comments; elif grep -q PullRequest <<<\"{4}\"; then gh pr view {5} -R {3} --comments; elif grep -q Release <<<{4}; then gh release view -R {3}; else echo {} | sed "s/[ ]\\{3,\\}/  /g"; fi'
-
 select_notif() {
-    local notifs selection key repo type num
+    local notifs open_notification_browser preview_notification selection key repo type num
     notifs="$(filtered_notifs)"
     [ -n "$notifs" ] || exit 0
+    open_notification_browser='if grep -qE "Issue|PullRequest" <<<{4}; then gh issue view {5} -wR {3}; elif grep -q Release <<<{4}; then gh release view -wR {3}; else gh repo view -w {3}; fi'
+    preview_notification='echo \[{1} {2} - {4}\] ;if grep -q Issue <<<{4}; then gh issue view {5} -R {3} --comments; elif grep -q PullRequest <<<\"{4}\"; then gh pr view {5} -R {3} --comments; elif grep -q Release <<<{4}; then gh release view -R {3}; else echo {} | sed "s/[ ]\\{3,\\}/  /g"; fi'
     # Enable terminal-style output even when the output is redirected.
     export GH_FORCE_TTY=100%
     # See the man page (man fzf) for an explanation of the arguments.
@@ -156,16 +149,14 @@ select_notif() {
     selection=$(fzf <<<"$notifs" --ansi --no-multi --reverse --info=inline \
         --margin 2%,1%,2%,1% --pointer='▶' \
         --border top --color "border:#778899" \
-        --header $'? - Toggle Help\n\n' --color 'header:italic:dim' \
+        --header $'? - Toggle Help\n\n' --color 'header:italic' \
         --header-first --bind "change:first" \
-        --bind "?:toggle-preview+change-preview:printf \"%s\n\n\n%s\" \"$(fzf_help)\" \"$(help)\"" \
-        --bind "ctrl-u:preview-up,ctrl-d:preview-down" \
-        --bind "ctrl-w:preview-half-page-up,ctrl-s:preview-half-page-down" \
-        --bind "ctrl-b:execute-silent:$Open_notification_browser" \
-        --bind "tab:toggle-preview+change-preview:$Preview_notification" \
+        --bind "?:toggle-preview+change-preview:printf \"Help\n%s\" \"$(help)\"" \
+        --bind "ctrl-b:execute-silent:$open_notification_browser" \
+        --bind "tab:toggle-preview+change-preview:$preview_notification" \
         --preview-window wrap:"$preview_window_visibility":50%:right:border-left \
-        --preview "$Preview_notification" \
-        --expect "enter,ctrl-x" | tr '\n' ' ')
+        --preview "$preview_notification" \
+        --expect "enter,ctrl-r,ctrl-x" | tr '\n' ' ')
 
     # Hotkey actions that close fzf are defined below
     read -r key _ _ repo type num _ <<<"$selection"
@@ -182,6 +173,9 @@ select_notif() {
         else
             echo "Notification preview for $type is not supported."
         fi
+        ;;
+    ctrl-r)
+        gh api -X PUT notifications -F read=true --silent
         ;;
     ctrl-x)
         if grep -qE "Issue|PullRequest" <<<"$type"; then
