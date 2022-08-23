@@ -12,7 +12,7 @@ Install the [Fuzzy Finder (fzf)](https://github.com/junegunn/fzf#installation) f
 
 ## Usage
 
-![demo](https://user-images.githubusercontent.com/92653266/185198672-6ae90682-b891-4fc4-b51e-0efbce427b46.gif)
+![demo](https://user-images.githubusercontent.com/92653266/186245012-46560f5f-e44f-45fe-8f71-86009c61305f.gif)
 
 ### Flags
 
@@ -20,18 +20,18 @@ Install the [Fuzzy Finder (fzf)](https://github.com/junegunn/fzf#installation) f
 gh notify [-Flag]
 ```
 
-| Flag   | Description                                                          | Example              |
-| ------ | -------------------------------------------------------------------- | -------------------- |
-| <none> | show all unread notifications                                        | gh notify            |
-| -a     | show all (read/ unread) notifications                                | gh notify -a         |
-| -r     | mark all notifications as read                                       | gh notify -r         |
-| -e     | exclude notifications matching a string (regular expression support) | gh notify -e "MyJob" |
-| -f     | filter the search to a specific user (regular expression support)    | gh notify -f "Repo"  |
-| -s     | print a static display                                               | gh notify -as        |
-| -n     | max number of notifications to show (default 30)                     | gh notify -an        |
-| -p     | show only participating or mentioned notifications                   | gh notify -ap        |
-| -w     | display the preview window in interactive mode (default hidden)      | gh notify -an 10 -w  |
-| -h     | show the help page                                                   | gh notify -h         |
+| Flag   | Description                                             | Example              |
+| ------ | ------------------------------------------------------- | -------------------- |
+| <none> | show all unread notifications                           | gh notify            |
+| -a     | show all (read/ unread) notifications                   | gh notify -a         |
+| -r     | mark all notifications as read                          | gh notify -r         |
+| -e     | exclude notifications matching a string (REGEX support) | gh notify -e "MyJob" |
+| -f     | filter the search to a specific user (REGEX support)    | gh notify -f "Repo"  |
+| -s     | print a static display                                  | gh notify -as        |
+| -n NUM | max number of notifications to show                     | gh notify -an        |
+| -p     | show only participating or mentioned notifications      | gh notify -ap        |
+| -w     | display the preview window in interactive mode          | gh notify -an 10 -w  |
+| -h     | show the help page                                      | gh notify -h         |
 
 ### HotKeys for interactive mode with Fuzzy Finder (fzf)
 
@@ -45,13 +45,13 @@ gh notify [-Flag]
 | ctrl+x   | write a comment with the editor and exit |
 | esc      | exit                                     |
 
-## Customization by modifing environment variables
+## Customizations
 
 ### Fuzzy Finder (fzf)
 Customize fzf colors and key bindings by exporting `ENVIRONMENT VARIABLES` to your `.zshrc`/`.bashrc`. See the man page (`man fzf`) or the [fzf README](https://github.com/junegunn/fzf#environment-variables) on GitHub for more details.
 
 ```zsh
-# .zshrc
+# ~/.zshrc
 # This example allows you to scroll the preview in larger steps with ctrl+w/s.
 export FZF_DEFAULT_OPTS="
 --bind 'ctrl-w:preview-half-page-up,ctrl-s:preview-half-page-down'"`

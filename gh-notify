@@ -9,23 +9,23 @@ help() {
     gh notify [-Flag]
 
 Flag   | Description
------- | --------------------------------------------------------------------
+------ | -------------
 <none> | show all unread notifications
 -a     | show all (read/ unread) notifications
 -r     | mark all notifications as read
--e     | exclude notifications matching a string (regular expression support)
--f     | filter the search to a specific user (regular expression support)
+-e     | exclude notifications matching a string (REGEX support)
+-f     | filter the search to a specific user (REGEX support)
 -s     | print a static display
--n     | max number of notifications to show (default 30)
+-n NUM | max number of notifications to show
 -p     | show only participating or mentioned notifications
--w     | display the preview window in interactive mode (default hidden)
+-w     | display the preview window in interactive mode
 -h     | show the help page
 
 
     Interactive mode with Fuzzy Finder (fzf)
 
 HotKey   | Description
--------- | ----------------------------------------
+-------- | -------------
 enter    | print notification and exit
 tab      | preview notification
 shift+↑↓ | scroll the preview up/ down
