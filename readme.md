@@ -24,7 +24,7 @@ gh notify [-Flag]
 | -a     | show all (read/ unread) notifications                   | gh notify -a         |
 | -r     | mark all notifications as read                          | gh notify -r         |
 | -e     | exclude notifications matching a string (REGEX support) | gh notify -e "MyJob" |
-| -f     | filter the search to a specific user (REGEX support)    | gh notify -f "Repo"  |
+| -f     | filter notifications matching a string (REGEX support)  | gh notify -f "Repo"  |
 | -s     | print a static display                                  | gh notify -as        |
 | -n NUM | max number of notifications to show                     | gh notify -an        |
 | -p     | show only participating or mentioned notifications      | gh notify -ap        |

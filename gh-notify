@@ -14,7 +14,7 @@ Flag   | Description
 -a     | show all (read/ unread) notifications
 -r     | mark all notifications as read
 -e     | exclude notifications matching a string (REGEX support)
--f     | filter the search to a specific user (REGEX support)
+-f     | filter notifications matching a string (REGEX support)
 -s     | print a static display
 -n NUM | max number of notifications to show
 -p     | show only participating or mentioned notifications
@@ -150,7 +150,7 @@ select_notif() {
     selection=$(fzf <<<"$notifs" --ansi --no-multi --reverse --info=inline \
         --margin 2%,1%,2%,1% --pointer='▶' \
         --border top --color "border:#778899" \
-        --header $'? - Toggle Help\n\n' --color 'header:italic' \
+        --header $'? - Toggle Help\n\n' --color 'header:italic:dim' \
         --header-first --bind "change:first" \
         --bind "?:toggle-preview+change-preview:printf \"Help\n%s\" \"$(help)\"" \
         --bind "ctrl-b:execute-silent:$open_notification_browser" \
