@@ -47,13 +47,22 @@ gh notify [-Flag]
 ## Customizations
 
 ### Fuzzy Finder (fzf)
-Customize fzf colors and key bindings by exporting `ENVIRONMENT VARIABLES` to your `.zshrc`/`.bashrc`. See the man page (`man fzf`) or [junegunn/fzf#environment-variables](https://github.com/junegunn/fzf#environment-variables) on GitHub for more details.
+Customize fzf colors and key bindings by exporting `ENVIRONMENT VARIABLES` to your `.zshrc`/`.bashrc`. See the man page (`man fzf`) for `AVAILABLE KEYS/ EVENTS` or [junegunn/fzf#environment-variables](https://github.com/junegunn/fzf#environment-variables) on GitHub for more details.
+
+- NOTE: [How to use ALT commands in a terminal on macOS?](https://superuser.com/questions/496090/how-to-use-alt-commands-in-a-terminal-on-os-x)
 
 ```zsh
 # ~/.zshrc
-# This example allows you to scroll the preview in larger steps with ctrl+w/s.
+# The following examples allow you to clear the input query with alt+c,
+# jump to the first/last result with alt+u/d, refresh the preview window with alt+r
+# and scroll the preview in larger steps with ctrl+w/s.
 export FZF_DEFAULT_OPTS="
---bind 'ctrl-w:preview-half-page-up,ctrl-s:preview-half-page-down'"`
+--bind 'alt-c:clear-query'
+--bind 'alt-u:first,alt-d:last'
+--bind 'alt-r:refresh-preview'
+--bind 'ctrl-w:preview-half-page-up,ctrl-s:preview-half-page-down'
+..."`
+
 ```
 
 ### GitHub command line tool (gh)
