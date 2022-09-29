@@ -142,13 +142,13 @@ select_notif() {
     notifs="$(filtered_notifs)"
     [ -n "$notifs" ] || exit 0
     open_notification_browser='if grep -qE "Issue|PullRequest" <<<{4}; then gh issue view {5} -wR {3}; elif grep -q Release <<<{4}; then gh release view -wR {3}; else gh repo view -w {3}; fi'
-    preview_notification='echo \[{1} {2} - {4}\] ;if grep -q Issue <<<{4}; then gh issue view {5} -R {3} --comments; elif grep -q PullRequest <<<\"{4}\"; then gh pr view {5} -R {3} --comments; elif grep -q Release <<<{4}; then gh release view -R {3}; else echo {} | sed "s/[ ]\\{3,\\}/  /g"; fi'
+    preview_notification='echo \[{1} {2} - {4}\] ;if grep -q Issue <<<{4}; then gh issue view {5} -R {3} --comments; elif grep -q PullRequest <<<\"{4}\"; then gh pr view {5} -R {3} --comments; elif grep -q Release <<<{4}; then gh release view -R {3}; else echo "Notification preview for {4} is not supported."; fi'
     # Enable terminal-style output even when the output is redirected.
     export GH_FORCE_TTY=100%
     # See the man page (man fzf) for an explanation of the arguments.
     # TODO: Release types without a tag name show only the information about the latest release.
     selection=$(fzf <<<"$notifs" --ansi --no-multi --reverse --info=inline \
-        --margin 2%,1%,2%,1% --pointer='▶' \
+        --margin 2,1%,2,1% --pointer='▶' \
         --border top --color "border:#778899" \
         --header $'? - Toggle Help\n\n' --color 'header:italic:dim' \
         --header-first --bind "change:first" \
