@@ -158,7 +158,6 @@ select_notif() {
     # Enable terminal-style output even when the output is redirected.
     export GH_FORCE_TTY=100%
     # See the man page (man fzf) for an explanation of the arguments.
-    # TODO: Release types without a tag name show only the information about the latest release.
     selection=$(fzf <<<"$notifs" --ansi --no-multi --reverse --info=inline \
         --margin 2,1%,2,1% --pointer='▶' \
         --border horizontal --color "border:#778899" \
