@@ -161,7 +161,7 @@ select_notif() {
     # TODO: Release types without a tag name show only the information about the latest release.
     selection=$(fzf <<<"$notifs" --ansi --no-multi --reverse --info=inline \
         --margin 2,1%,2,1% --pointer='▶' \
-        --border top --color "border:#778899" \
+        --border horizontal --color "border:#778899" \
         --header $'? - Toggle Help\n\n' --color 'header:italic:dim' \
         --header-first --bind "change:first" \
         --bind "?:toggle-preview+change-preview:printf \"Help\n%s\" \"$(help)\"" \
