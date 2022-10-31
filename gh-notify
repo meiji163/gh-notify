@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 set -e -o pipefail
 
+GREEN='\033[0;32m'
+NC='\033[0m'
+
 help() {
     # IMPORTANT: keep it synchronized with the README, but without the Examples
-    # Leave one line empty at the beginning and end, and two between sections. Looks better
+    # Leave one line blank at the beginning and end, and two between sections. This looks cleaner.
     cat <<EOF
 
     gh notify [-Flag]
@@ -85,16 +88,15 @@ get_notifs() {
         --template '
     {{- range . -}}
         {{- printf "%s\t%s\t%s\t" (timefmt "02/Jan 15:04" .updated_at | color "gray+h") .subject.type .subject.title -}}
-        {{- printf "%s\t" (.repository.full_name | color "blue+b") -}}
-        {{- if eq .subject.type "Release" -}} {{- printf "%s\t" ("✓" | color "green") -}}
-        {{- else -}} {{- printf "%s\t" (.subject.url | color "green") -}} {{- end -}}
+        {{- printf "%s%s%s\t" (.repository.owner.login | color "blue+h") ("/" | color "gray") (.repository.name | color "blue+bh") -}}
+        {{- if .subject.url -}}{{- printf "%s\t" .subject.url -}}{{- end -}}
         {{- if .unread -}} {{- printf "%s\n" ("●" | color "magenta") -}}
         {{- else -}} {{- printf "%s\n" (" " | color "magenta") -}} {{- end -}}
     {{- end -}}'
 }
 
 print_notifs() {
-    local timefmt type title repo url unread
+    local timefmt type title repo url unread number
     all_notifs=""
     page_num=1
     while true; do
@@ -106,9 +108,17 @@ print_notifs() {
         fi
         new_notifs=$(
             echo "$page" | while IFS=$'\t' read -r timefmt type title repo url unread; do
-                # "${variable//search/replace}" keep the green color but remove everything between http and the very last slash symbol
-                # https://wiki.bash-hackers.org/syntax/pe
-                printf "\n%s\t%s\t%s %s %s\t%s\n" "${timefmt}" "${repo}" "${type}" "${url/http*\//#}" "${unread}" "${title}"
+                if grep -q "Release" <<<"$type"; then
+                    release_info=()
+                    while IFS='' read -r line; do release_info+=("$line"); done < <(gh api --cache=20s "$url" --jq '.tag_name, .prerelease')
+                    number="${release_info[0]}"
+                    "${release_info[1]}" && type="Pre-release"
+                else
+                    # gh api calls cost time, try to avoid them as much as possible
+                    # ${variable//search/replace} - https://wiki.bash-hackers.org/syntax/pe
+                    number=${url/*\//#}
+                fi
+                printf "\n%s\t%s\t%s ${GREEN}%s${NC} %s\t%s\n" "$timefmt" "$repo" "$type" "$number" "$unread" "$title"
             done
         )
         all_notifs="$all_notifs$new_notifs"
@@ -141,15 +151,14 @@ select_notif() {
     local notifs open_notification_browser preview_notification selection key repo type num
     notifs="$(filtered_notifs)"
     [ -n "$notifs" ] || exit 0
-    open_notification_browser='if grep -qE "Issue|PullRequest" <<<{4}; then gh issue view {5} -wR {3}; elif grep -q Release <<<{4}; then gh release view -wR {3}; else gh repo view -w {3}; fi'
-    preview_notification='echo \[{1} {2} - {4}\] ;if grep -q Issue <<<{4}; then gh issue view {5} -R {3} --comments; elif grep -q PullRequest <<<\"{4}\"; then gh pr view {5} -R {3} --comments; elif grep -q Release <<<{4}; then gh release view -R {3}; else echo "Notification preview for {4} is not supported."; fi'
+    open_notification_browser='if grep -qE "Issue|PullRequest" <<<{4}; then gh issue view {5} -wR {3}; elif grep -q "[Rr]elease" <<<{4}; then gh release view {5} -wR {3}; else gh repo view -w {3}; fi'
+    preview_notification='echo \[{1} {2} - {4}\] ;if grep -q Issue <<<{4}; then gh issue view {5} -R {3} --comments; elif grep -q PullRequest <<<\"{4}\"; then gh pr view {5} -R {3} --comments; elif grep -q "[Rr]elease" <<<{4}; then gh release view {5} -R {3}; else echo "Notification preview for {4} is not supported."; fi'
     # Enable terminal-style output even when the output is redirected.
     export GH_FORCE_TTY=100%
     # See the man page (man fzf) for an explanation of the arguments.
-    # TODO: Release types without a tag name show only the information about the latest release.
     selection=$(fzf <<<"$notifs" --ansi --no-multi --reverse --info=inline \
         --margin 2,1%,2,1% --pointer='▶' \
-        --border top --color "border:#778899" \
+        --border horizontal --color "border:#778899" \
         --header $'? - Toggle Help\n\n' --color 'header:italic:dim' \
         --header-first --bind "change:first" \
         --bind "?:toggle-preview+change-preview:printf \"Help\n%s\" \"$(help)\"" \
@@ -169,8 +178,8 @@ select_notif() {
             gh issue view "$num" -R "$repo" --comments
         elif grep -q "PullRequest" <<<"$type"; then
             gh pr view "$num" -R "$repo" --comments
-        elif grep -q "Release" <<<"$type"; then
-            gh release view -R "$repo"
+        elif grep -q "[Rr]elease" <<<"$type"; then
+            gh release view "$num" -R "$repo"
         else
             echo "Notification preview for $type is not supported."
         fi

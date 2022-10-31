@@ -26,7 +26,7 @@ gh notify [-Flag]
 | -e     | exclude notifications matching a string (REGEX support) | gh notify -e "MyJob" |
 | -f     | filter notifications matching a string (REGEX support)  | gh notify -f "Repo"  |
 | -s     | print a static display                                  | gh notify -as        |
-| -n NUM | max number of notifications to show                     | gh notify -an        |
+| -n NUM | max number of notifications to show                     | gh notify -an 10     |
 | -p     | show only participating or mentioned notifications      | gh notify -ap        |
 | -w     | display the preview window in interactive mode          | gh notify -an 10 -w  |
 | -h     | show the help page                                      | gh notify -h         |
