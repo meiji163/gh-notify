@@ -31,7 +31,7 @@ tab      | toggle preview notification
 enter    | print notification and exit
 shift+↑↓ | scroll the preview up/ down
 ctrl+b   | open notification in browser
-ctrl+r   | mark all notifications as read and exit
+ctrl+r   | mark all displayed notifications as read and exit
 ctrl+x   | write a comment with the editor and exit
 esc      | exit
 
@@ -46,6 +46,9 @@ mark_read_flag='false'
 num_notifications='0'
 exclusion_string='XXX_BOGUS_STRING_THAT_SHOULD_NOT_EXIST_XXX'
 filter_string=''
+# UTC time ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ
+# https://docs.github.com/en/rest/overview/resources-in-the-rest-api#timezones
+timestamp=$(date +"%Y-%m-%dT%H:%M:%S%z")
 
 while getopts 'e:f:n:pawhsr' flag; do
     case "${flag}" in
@@ -137,6 +140,10 @@ filtered_notifs() {
     print_notifs | grep -v "$exclusion_string" | grep "$filter_string"
 }
 
+mark_read() {
+    gh api -X PUT notifications -f last_read_at="$timestamp" -F read=true --silent
+}
+
 select_notif() {
     local notifs open_notification_browser preview_notification selection key repo type num
     notifs="$(filtered_notifs)"
@@ -178,7 +185,7 @@ select_notif() {
     ctrl-r)
         # TODO Dynamically update the input list without restarting fzf
         # --bind 'ctrl-m:execute(gh api ...)+reload(...)'
-        gh api -X PUT notifications -F read=true --silent
+        mark_read
         ;;
     ctrl-x)
         if grep -qE "Issue|PullRequest" <<<"$type"; then
@@ -191,7 +198,7 @@ select_notif() {
 }
 
 if [[ $mark_read_flag == "true" ]]; then
-    gh api -X PUT notifications -F read=true --silent
+    mark_read
     exit 0
 fi
 
