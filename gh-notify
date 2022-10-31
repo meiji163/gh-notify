@@ -6,7 +6,7 @@ NC='\033[0m'
 
 help() {
     # IMPORTANT: keep it synchronized with the README, but without the Examples
-    # Leave one line empty at the beginning and end, and two between sections. Looks better
+    # Leave one line blank at the beginning and end, and two between sections. This looks cleaner.
     cat <<EOF
 
     gh notify [-Flag]
@@ -112,12 +112,10 @@ print_notifs() {
                     release_info=()
                     while IFS='' read -r line; do release_info+=("$line"); done < <(gh api --cache=20s "$url" --jq '.tag_name, .prerelease')
                     number="${release_info[0]}"
-                    if ${release_info[1]}; then
-                        type="Pre-release"
-                    fi
+                    "${release_info[1]}" && type="Pre-release"
                 else
-                    # "${variable//search/replace}" - gh api calls cost time, try to avoid them as much as possible
-                    # https://wiki.bash-hackers.org/syntax/pe
+                    # gh api calls cost time, try to avoid them as much as possible
+                    # ${variable//search/replace} - https://wiki.bash-hackers.org/syntax/pe
                     number=${url/*\//#}
                 fi
                 printf "\n%s\t%s\t%s ${GREEN}%s${NC} %s\t%s\n" "$timefmt" "$repo" "$type" "$number" "$unread" "$title"
