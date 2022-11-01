@@ -91,7 +91,7 @@ get_notifs() {
         --template '
     {{- range . -}}
         {{- printf "%s\t%s\t%s\t" (timefmt "02/Jan 15:04" .updated_at | color "gray+h") .subject.type .subject.title -}}
-        {{- printf "%s%s%s\t" (.repository.owner.login | color "blue+h") ("/" | color "gray") (.repository.name | color "blue+bh") -}}
+        {{- printf "%s%s%s\t" (.repository.owner.login | color "cyan") ("/" | color "gray") (.repository.name | color "cyan+b") -}}
         {{- if .subject.url -}}{{- printf "%s\t" .subject.url -}}{{- end -}}
         {{- if .unread -}} {{- printf "%s\n" ("●" | color "magenta") -}}
         {{- else -}} {{- printf "%s\n" (" " | color "magenta") -}} {{- end -}}
