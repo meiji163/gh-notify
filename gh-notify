@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -e -o pipefail
 
+# NotificationReason:
+# assign, author, comment, invitation, manual, mention, review_requested, security_alert, state_change, subscribed, team_mention, ci_activity
+# NotificationSubjectTypes:
+# CheckSuite, Commit, Discussion, Issue, PullRequest, Release, RepositoryVulnerabilityAlert, ...
+
 GREEN='\033[0;32m'
 NC='\033[0m'
 
@@ -85,21 +90,25 @@ get_notifs() {
     fi
     printf >&2 "." # "marching ants" because sometimes this takes a bit.
     # timefmt must use the reference time Mon Jan 2 15:04:05 MST 2006 to format a given time
-    # Empty strings are colorized to keep the columns in line.
     gh api -X GET notifications --cache=20s \
         -f per_page="$local_page_size" -f all="$include_all_flag" -f participating="$only_participating_flag" -f page="$page_num" \
         --template '
     {{- range . -}}
+            {{- /* NOTE: Hidden data points without color codes used in GraphQL query */ -}}
+        {{- printf "%s\t%s\t" (timefmt "2006-01" .updated_at) .repository.full_name -}}
         {{- printf "%s\t%s\t%s\t" (timefmt "02/Jan 15:04" .updated_at | color "gray+h") .subject.type .subject.title -}}
         {{- printf "%s%s%s\t" (.repository.owner.login | color "cyan+h") ("/" | color "gray+h") (.repository.name | color "cyan+hb") -}}
-        {{- if .subject.url -}}{{- printf "%s\t" .subject.url -}}{{- end -}}
+        {{- if .subject.url -}}{{- printf "%s\t" .subject.url -}}
+            {{- else -}}{{- printf " \t" -}}
+        {{- end -}}
         {{- if .unread -}} {{- printf "%s\n" ("●" | color "magenta") -}}
-        {{- else -}} {{- printf "%s\n" (" " | color "magenta") -}} {{- end -}}
+            {{- else -}}{{- printf "%s\n" (" " | color "magenta") -}}
+        {{- end -}}
     {{- end -}}'
 }
 
 print_notifs() {
-    local timefmt type title repo url unread number
+    local hidden_updated_at hidden_repository_full_name timefmt type title repo url unread number graphql_query_discussion
     all_notifs=""
     page_num=1
     while true; do
@@ -110,10 +119,14 @@ print_notifs() {
             page_num=$((page_num + 1))
         fi
         new_notifs=$(
-            echo "$page" | while IFS=$'\t' read -r timefmt type title repo url unread; do
-                if grep -q "Release" <<<"$type"; then
+            echo "$page" | while IFS=$'\t' read -r hidden_updated_at hidden_repository_full_name timefmt type title repo url unread; do
+                if grep -q "Discussion" <<<"$type"; then
+                    graphql_query_discussion=$'query ($filter: String!) { search(query: $filter, type: DISCUSSION, first: 1) { nodes { ... on Discussion { number }}}}'
+                    # https://docs.github.com/en/search-github/searching-on-github/searching-discussions
+                    number=$(gh api graphql --cache=20m --raw-field filter="$title in:title updated:>=$hidden_updated_at repo:$hidden_repository_full_name" --raw-field query="$graphql_query_discussion" --jq '.data.search.nodes | .[].number')
+                elif grep -q "Release" <<<"$type"; then
                     release_info=()
-                    while IFS='' read -r line; do release_info+=("$line"); done < <(gh api --cache=20s "$url" --jq '.tag_name, .prerelease')
+                    while IFS='' read -r line; do release_info+=("$line"); done < <(gh api --cache=20m "$url" --jq '.tag_name, .prerelease')
                     number="${release_info[0]}"
                     "${release_info[1]}" && type="Pre-release"
                 else
@@ -158,7 +171,7 @@ select_notif() {
     local notifs open_notification_browser preview_notification selection key repo type num
     notifs="$(filtered_notifs)"
     [ -n "$notifs" ] || exit 0
-    open_notification_browser='if grep -qE "Issue|PullRequest" <<<{4}; then gh issue view {5} -wR {3}; elif grep -q "[Rr]elease" <<<{4}; then gh release view {5} -wR {3}; else gh repo view -w {3}; fi'
+    open_notification_browser='if grep -qE "Issue|PullRequest" <<<{4}; then gh issue view {5} -wR {3}; elif grep -q "[Rr]elease" <<<{4}; then gh release view {5} -wR {3};  elif grep -q Discussion <<<{4}; then open https://github.com/{3}/discussions/{5} ; else gh repo view -w {3}; fi'
     preview_notification='echo \[{1} {2} - {4}\] ;if grep -q Issue <<<{4}; then gh issue view {5} -R {3} --comments; elif grep -q PullRequest <<<\"{4}\"; then gh pr view {5} -R {3} --comments; elif grep -q "[Rr]elease" <<<{4}; then gh release view {5} -R {3}; else echo "Notification preview for {4} is not supported."; fi'
     # Enable terminal-style output even when the output is redirected.
     export GH_FORCE_TTY=100%
