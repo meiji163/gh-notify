@@ -64,7 +64,6 @@ filter_string=''
 # UTC time ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ
 # https://docs.github.com/en/rest/overview/resources-in-the-rest-api#timezones
 timestamp=$(date +"%Y-%m-%dT%H:%M:%S%z")
-user_name=$(gh api graphql --cache 1h --raw-field query='{viewer{login}}' --jq '.data.viewer.login')
 
 while getopts 'e:f:n:pawhsr' flag; do
     case "${flag}" in
@@ -172,16 +171,16 @@ select_notif() {
     selection=$(
         fzf <<<"$notifs" --ansi --no-multi \
             --reverse --info=inline --pointer='▶' \
-            --border bold --color "border:#778899" \
-            --border-label " ${user_name}'s GitHub Notifications (? help • esc quit) " --border-label-pos 3 \
-            --color=label:bold:255 \
+            --border rounded --color 'border:255,label:244:bold' \
+            --border-label " Notifications (? help • esc quit) " --border-label-pos 3 \
+            --preview "$preview_notification" \
+            --preview-label " Preview " --preview-label-pos 3 \
+            --preview-window wrap:"$preview_window_visibility":50%:right:border \
             --no-separator --header $'\n' \
             --header-first --bind "change:first" \
             --bind "?:toggle-preview+change-preview:printf \"Help\n%s\" \"$(help)\"" \
             --bind "ctrl-b:execute-silent:$open_notification_browser" \
             --bind "tab:toggle-preview+change-preview:$preview_notification" \
-            --preview-window wrap:"$preview_window_visibility":50%:right:border-left \
-            --preview "$preview_notification" \
             --expect "enter,ctrl-r,ctrl-x" | tr '\n' ' '
     )
 
