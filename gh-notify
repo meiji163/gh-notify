@@ -4,6 +4,8 @@ set -e -o pipefail
 GREEN='\033[0;32m'
 NC='\033[0m'
 
+# https://docs.github.com/en/rest/overview/api-versions
+GH_REST_API_VERSION="2022-11-28"
 # Enable terminal-style output even when the output is redirected.
 export GH_FORCE_TTY=100%
 # Disable the gh pager
@@ -94,7 +96,7 @@ get_notifs() {
         local_page_size=$num_notifications
     fi
     printf >&2 "." # "marching ants" because sometimes this takes a bit.
-    gh api --header "X-GitHub-Api-Version:2022-11-28" --method GET notifications --cache=20s \
+    gh api --header "X-GitHub-Api-Version:$GH_REST_API_VERSION" --method GET notifications --cache=20s \
         -f per_page="$local_page_size" -f all="$include_all_flag" -f participating="$only_participating_flag" -f page="$page_num" \
         --template '
     {{- range . -}}
@@ -125,9 +127,9 @@ print_notifs() {
                 if grep -q "Commit" <<<"$type"; then
                     number=$(basename "$url" | head -c 7)
                 elif grep -q "Release" <<<"$type"; then
-                    if [[ -n "$url" ]]; then
+                    if grep -q "^http" <<<"$url"; then
                         release_info=()
-                        while IFS='' read -r line; do release_info+=("$line"); done < <(gh api --header "X-GitHub-Api-Version:2022-11-28" --cache=20s "$url" --jq '.tag_name, .prerelease')
+                        while IFS='' read -r line; do release_info+=("$line"); done < <(gh api --header "X-GitHub-Api-Version:$GH_REST_API_VERSION" --method GET --cache=20s "$url" --jq '.tag_name, .prerelease')
                         number="${release_info[0]}"
                         "${release_info[1]}" && type="Pre-release"
                     else
@@ -168,7 +170,7 @@ filtered_notifs() {
 }
 
 mark_read() {
-    gh api --header "X-GitHub-Api-Version:2022-11-28" --method PUT notifications -f last_read_at="$timestamp" -F read=true --silent
+    gh api --header "X-GitHub-Api-Version:$GH_REST_API_VERSION" --method PUT notifications -f last_read_at="$timestamp" -F read=true --silent
 }
 
 select_notif() {
