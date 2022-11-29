@@ -94,7 +94,7 @@ get_notifs() {
         local_page_size=$num_notifications
     fi
     printf >&2 "." # "marching ants" because sometimes this takes a bit.
-    gh api -X GET notifications --cache=20s \
+    gh api --header "X-GitHub-Api-Version:2022-11-28" --method GET notifications --cache=20s \
         -f per_page="$local_page_size" -f all="$include_all_flag" -f participating="$only_participating_flag" -f page="$page_num" \
         --template '
     {{- range . -}}
@@ -125,10 +125,14 @@ print_notifs() {
                 if grep -q "Commit" <<<"$type"; then
                     number=$(basename "$url" | head -c 7)
                 elif grep -q "Release" <<<"$type"; then
-                    release_info=()
-                    while IFS='' read -r line; do release_info+=("$line"); done < <(gh api --cache=20s "$url" --jq '.tag_name, .prerelease')
-                    number="${release_info[0]}"
-                    "${release_info[1]}" && type="Pre-release"
+                    if [[ -n "$url" ]]; then
+                        release_info=()
+                        while IFS='' read -r line; do release_info+=("$line"); done < <(gh api --header "X-GitHub-Api-Version:2022-11-28" --cache=20s "$url" --jq '.tag_name, .prerelease')
+                        number="${release_info[0]}"
+                        "${release_info[1]}" && type="Pre-release"
+                    else
+                        number="Tag number not present"
+                    fi
                 else
                     # gh api calls cost time, try to avoid them as much as possible
                     # ${variable//search/replace} - https://wiki.bash-hackers.org/syntax/pe
@@ -164,7 +168,7 @@ filtered_notifs() {
 }
 
 mark_read() {
-    gh api -X PUT notifications -f last_read_at="$timestamp" -F read=true --silent
+    gh api --header "X-GitHub-Api-Version:2022-11-28" --method PUT notifications -f last_read_at="$timestamp" -F read=true --silent
 }
 
 select_notif() {
