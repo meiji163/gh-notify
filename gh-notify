@@ -23,32 +23,34 @@ help() {
 
     gh notify [-Flag]
 
-Flag   | Description
------- | -------------
-<none> | show all unread notifications
--a     | show all (read/ unread) notifications
--r     | mark all notifications as read
--e     | exclude notifications matching a string (REGEX support)
--f     | filter notifications matching a string (REGEX support)
--s     | print a static display
--n NUM | max number of notifications to show
--p     | show only participating or mentioned notifications
--w     | display the preview window in interactive mode
--h     | show the help page
+Flag   │ Description
+───────│───────────────
+<none> │ show all unread notifications
+-a     │ show all (read/ unread) notifications
+-r     │ mark all notifications as read
+-e     │ exclude notifications matching a string (REGEX support)
+-f     │ filter notifications matching a string (REGEX support)
+-s     │ print a static display
+-n NUM │ max number of notifications to show
+-p     │ show only participating or mentioned notifications
+-w     │ display the preview window in interactive mode
+-h     │ show the help page
 
 
     Interactive mode with Fuzzy Finder (fzf)
 
-HotKey   | Description
--------- | -------------
-?        | toggle help
-tab      | toggle preview notification
-enter    | print notification and exit
-shift+↑↓ | scroll the preview up/ down
-ctrl+b   | open notification in browser
-ctrl+r   | mark all displayed notifications as read and exit
-ctrl+x   | write a comment with the editor and exit
-esc      | exit
+HotKey   │ Description
+─────────│───────────────
+?        │ toggle help
+tab      │ toggle preview notification
+enter    │ print notification and exit
+shift+↑↓ │ scroll the preview up/ down
+ctrl+b   │ open notification in browser
+ctrl+d   │ view diff
+ctrl+p   │ view diff in patch format
+ctrl+r   │ mark all displayed notifications as read and exit
+ctrl+x   │ write a comment with the editor and exit
+esc      │ exit
 
 EOF
 }
@@ -177,6 +179,8 @@ select_notif() {
     local notifs open_notification_browser preview_notification selection key repo type num
     notifs="$(filtered_notifs)"
     [ -n "$notifs" ] || exit 0
+    # https://dandavison.github.io/delta
+    diff_pager=$'if type -p delta >/dev/null; then delta --width ${FZF_PREVIEW_COLUMNS:-$COLUMNS}; else cat; fi'
     open_notification_browser='if grep -q CheckSuite <<<{4}; then open https://github.com/{3}/actions ; elif grep -q Commit <<<{4}; then gh browse {5} -R {3} ; elif grep -q Discussion <<<{4}; then open https://github.com/{3}/discussions ; elif grep -qE "Issue|PullRequest" <<<{4}; then gh issue view {5} -wR {3}; elif grep -q "[Rr]elease" <<<{4}; then gh release view {5} -wR {3}; else gh repo view -w {3}; fi'
     preview_notification='echo \[{1} {2} - {4}\] ;if grep -q Issue <<<{4}; then gh issue view {5} -R {3} --comments; elif grep -q PullRequest <<<\"{4}\"; then gh pr view {5} -R {3} --comments; elif grep -q "[Rr]elease" <<<{4}; then gh release view {5} -R {3}; else echo "Notification preview for {4} is not supported."; fi'
 
@@ -188,6 +192,8 @@ select_notif() {
         --header-first --bind "change:first" \
         --bind "?:toggle-preview+change-preview:printf \"Help\n%s\" \"$(help)\"" \
         --bind "ctrl-b:execute-silent:$open_notification_browser" \
+        --bind "ctrl-d:toggle-preview+change-preview:if grep -q PullRequest <<<{4}; then gh pr diff {5} -R {3} | $diff_pager; else $preview_notification; fi" \
+        --bind "ctrl-p:toggle-preview+change-preview:if grep -q PullRequest <<<{4}; then gh pr diff {5} --patch -R {3} | $diff_pager; else  $preview_notification; fi" \
         --bind "tab:toggle-preview+change-preview:$preview_notification" \
         --preview-window wrap:"$preview_window_visibility":50%:right:border-left \
         --preview "$preview_notification" \
