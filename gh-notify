@@ -129,13 +129,15 @@ print_notifs() {
                 if grep -q "Commit" <<<"$type"; then
                     number=$(basename "$url" | head -c 7)
                 elif grep -q "Release" <<<"$type"; then
-                    if grep -q "^http" <<<"$url"; then
+                    if grep -q "^http" <<<"$url" && gh api --cache 20s --header "X-GitHub-Api-Version:$GH_REST_API_VERSION" --method GET "$url" --silent 2>/dev/null; then
+                        #  URL works
                         release_info=()
-                        while IFS='' read -r line; do release_info+=("$line"); done < <(gh api --header "X-GitHub-Api-Version:$GH_REST_API_VERSION" --method GET --cache=20s "$url" --jq '.tag_name, .prerelease')
+                        while IFS='' read -r line; do release_info+=("$line"); done < <(gh api --cache 20s --header "X-GitHub-Api-Version:$GH_REST_API_VERSION" --method GET "$url" --jq '.tag_name, .prerelease')
                         number="${release_info[0]}"
                         "${release_info[1]}" && type="Pre-release"
                     else
-                        number="Tag number not present"
+                        #  URL does not work, no need to show the notification
+                        continue
                     fi
                 else
                     # gh api calls cost time, try to avoid them as much as possible
