@@ -48,7 +48,7 @@ shift+↑↓ │ scroll the preview up/ down
 ctrl+b   │ open notification in browser
 ctrl+d   │ view diff
 ctrl+p   │ view diff in patch format
-ctrl+r   │ mark all displayed notifications as read and exit
+ctrl+r   │ mark all displayed notifications as read and reload
 ctrl+x   │ write a comment with the editor and exit
 esc      │ exit
 
@@ -66,6 +66,9 @@ filter_string=''
 # UTC time ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ
 # https://docs.github.com/en/rest/overview/resources-in-the-rest-api#timezones
 timestamp=$(date +"%Y-%m-%dT%H:%M:%S%z")
+# https://github.com/mislav/gh-branch/blob/main/gh-branch#L105
+# this trick only works with the -s flag
+reload_arguments="$0 $* -s"
 
 while getopts 'e:f:n:pawhsr' flag; do
     case "${flag}" in
@@ -98,7 +101,7 @@ get_notifs() {
         local_page_size=$num_notifications
     fi
     printf >&2 "." # "marching ants" because sometimes this takes a bit.
-    gh api --header "X-GitHub-Api-Version:$GH_REST_API_VERSION" --method GET notifications --cache=20s \
+    gh api --header "X-GitHub-Api-Version:$GH_REST_API_VERSION" --method GET notifications --cache=0s \
         -f per_page="$local_page_size" -f all="$include_all_flag" -f participating="$only_participating_flag" -f page="$page_num" \
         --template '
     {{- range . -}}
@@ -157,37 +160,24 @@ print_notifs() {
     done
     # clear the dots we printed
     echo >&2 -e "\r\033[K"
-    # the different pages frequently come back with different
-    # column widths.
-    # If we insert a tab before the notification type
-    # and recolumnize on that everything works out.
-    echo "$all_notifs" |
-        sed -e "s/ Issue / \tIssue /" \
-            -e "s/ PullRequest / \tPullRequest /" \
-            -e "s/ Commit / \tCommit /" \
-            -e "s/ Release / \tRelease /" |
-        column -t -s $'\t'
-}
 
-filtered_notifs() {
-    print_notifs | grep -v "$exclusion_string" | grep "$filter_string"
+    echo "$all_notifs" | grep -v "$exclusion_string" | grep "$filter_string" | column -t -s $'\t'
 }
-
 mark_read() {
     gh api --header "X-GitHub-Api-Version:$GH_REST_API_VERSION" --method PUT notifications -f last_read_at="$timestamp" -F read=true --silent
 }
-
 select_notif() {
-    local notifs open_notification_browser preview_notification selection key repo type num
-    notifs="$(filtered_notifs)"
-    [ -n "$notifs" ] || exit 0
+    local notif_msg open_notification_browser preview_notification selection key repo type num
+    notif_msg="$1"
     # https://dandavison.github.io/delta
     diff_pager=$'if type -p delta >/dev/null; then delta --width ${FZF_PREVIEW_COLUMNS:-$COLUMNS}; else cat; fi'
     open_notification_browser='if grep -q CheckSuite <<<{4}; then open https://github.com/{3}/actions ; elif grep -q Commit <<<{4}; then gh browse {5} -R {3} ; elif grep -q Discussion <<<{4}; then open https://github.com/{3}/discussions ; elif grep -qE "Issue|PullRequest" <<<{4}; then gh issue view {5} -wR {3}; elif grep -q "[Rr]elease" <<<{4}; then gh release view {5} -wR {3}; else gh repo view -w {3}; fi'
     preview_notification='echo \[{1} {2} - {4}\] ;if grep -q Issue <<<{4}; then gh issue view {5} -R {3} --comments; elif grep -q PullRequest <<<\"{4}\"; then gh pr view {5} -R {3} --comments; elif grep -q "[Rr]elease" <<<{4}; then gh release view {5} -R {3}; else echo "Notification preview for {4} is not supported."; fi'
 
     # See the man page (man fzf) for an explanation of the arguments.
-    selection=$(fzf <<<"$notifs" --ansi --no-multi \
+    # The key combination ctrl-m is a synonym for enter,
+    # therefore the key to mark notifications as read shall not be ctrl-m.
+    selection=$(fzf <<<"$notif_msg" --ansi --no-multi \
         --reverse --info=inline --pointer='▶' \
         --border horizontal --color "border:#778899" \
         --header $'? - Toggle Help\n\n' --color 'header:italic:dim' \
@@ -196,14 +186,16 @@ select_notif() {
         --bind "ctrl-b:execute-silent:$open_notification_browser" \
         --bind "ctrl-d:toggle-preview+change-preview:if grep -q PullRequest <<<{4}; then gh pr diff {5} -R {3} | $diff_pager; else $preview_notification; fi" \
         --bind "ctrl-p:toggle-preview+change-preview:if grep -q PullRequest <<<{4}; then gh pr diff {5} --patch -R {3} | $diff_pager; else  $preview_notification; fi" \
+        --bind "ctrl-r:+execute-silent($(mark_read))+reload:$reload_arguments" \
         --bind "tab:toggle-preview+change-preview:$preview_notification" \
         --preview-window wrap:"$preview_window_visibility":50%:right:border-left \
         --preview "$preview_notification" \
-        --expect "enter,ctrl-r,ctrl-x" | tr '\n' ' ')
+        --expect "enter,ctrl-x" | tr '\n' ' ')
 
     # Hotkey actions that close fzf are defined below
     read -r key _ _ repo type num _ <<<"$selection"
-    [[ -n "$key" ]] && case "$key" in
+    [[ -z "$type" ]] && exit 0
+    case "$key" in
     enter)
         if grep -q "Issue" <<<"$type"; then
             gh issue view "$num" -R "$repo" --comments
@@ -214,11 +206,6 @@ select_notif() {
         else
             echo "Notification preview for $type is not supported."
         fi
-        ;;
-    ctrl-r)
-        # TODO Dynamically update the input list without restarting fzf
-        # --bind 'ctrl-m:execute(gh api ...)+reload(...)'
-        mark_read
         ;;
     ctrl-x)
         if grep -qE "Issue|PullRequest" <<<"$type"; then
@@ -235,12 +222,16 @@ if [[ $mark_read_flag == "true" ]]; then
     exit 0
 fi
 
-if [[ $print_static_flag == "false" ]]; then
+notifs="$(print_notifs)"
+if [[ -z "$notifs" ]]; then
+    echo "All caught up!"
+    exit 0
+elif [[ $print_static_flag == "false" ]]; then
     if ! type -p fzf >/dev/null; then
         echo "error: install \`fzf\` or use the -s flag" >&2
         exit 1
     fi
-    select_notif
+    select_notif "$notifs"
 else
-    filtered_notifs
+    echo "$notifs"
 fi
