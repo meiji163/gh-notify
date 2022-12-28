@@ -163,9 +163,7 @@ print_notifs() {
 
     echo "$all_notifs" | grep -v "$exclusion_string" | grep "$filter_string" | column -t -s $'\t'
 }
-mark_read() {
-    gh api --header "X-GitHub-Api-Version:$GH_REST_API_VERSION" --method PUT notifications -f last_read_at="$timestamp" -F read=true --silent
-}
+
 select_notif() {
     local notif_msg open_notification_browser preview_notification selection key repo type num
     notif_msg="$1"
@@ -173,6 +171,8 @@ select_notif() {
     diff_pager=$'if type -p delta >/dev/null; then delta --width ${FZF_PREVIEW_COLUMNS:-$COLUMNS}; else cat; fi'
     open_notification_browser='if grep -q CheckSuite <<<{4}; then open https://github.com/{3}/actions ; elif grep -q Commit <<<{4}; then gh browse {5} -R {3} ; elif grep -q Discussion <<<{4}; then open https://github.com/{3}/discussions ; elif grep -qE "Issue|PullRequest" <<<{4}; then gh issue view {5} -wR {3}; elif grep -q "[Rr]elease" <<<{4}; then gh release view {5} -wR {3}; else gh repo view -w {3}; fi'
     preview_notification='echo \[{1} {2} - {4}\] ;if grep -q Issue <<<{4}; then gh issue view {5} -R {3} --comments; elif grep -q PullRequest <<<\"{4}\"; then gh pr view {5} -R {3} --comments; elif grep -q "[Rr]elease" <<<{4}; then gh release view {5} -R {3}; else echo "Notification preview for {4} is not supported."; fi'
+    # If this were passed as a function to fzf, it would be called immediately when fzf is called, in spite of the fact that the assigned hotkey was not triggered.
+    fzf_mark_read="gh api --header X-GitHub-Api-Version:$GH_REST_API_VERSION --method PUT notifications -f last_read_at=$timestamp -F read=true --silent"
 
     # See the man page (man fzf) for an explanation of the arguments.
     # The key combination ctrl-m is a synonym for enter,
@@ -186,7 +186,7 @@ select_notif() {
         --bind "ctrl-b:execute-silent:$open_notification_browser" \
         --bind "ctrl-d:toggle-preview+change-preview:if grep -q PullRequest <<<{4}; then gh pr diff {5} -R {3} | $diff_pager; else $preview_notification; fi" \
         --bind "ctrl-p:toggle-preview+change-preview:if grep -q PullRequest <<<{4}; then gh pr diff {5} --patch -R {3} | $diff_pager; else  $preview_notification; fi" \
-        --bind "ctrl-r:+execute-silent($(mark_read))+reload:$reload_arguments" \
+        --bind "ctrl-r:+execute-silent($fzf_mark_read)+reload:$reload_arguments" \
         --bind "tab:toggle-preview+change-preview:$preview_notification" \
         --preview-window wrap:"$preview_window_visibility":50%:right:border-left \
         --preview "$preview_notification" \
@@ -218,7 +218,7 @@ select_notif() {
 }
 
 if [[ $mark_read_flag == "true" ]]; then
-    mark_read
+    gh api --header "X-GitHub-Api-Version:$GH_REST_API_VERSION" --method PUT notifications -f last_read_at="$timestamp" -F read=true --silent
     exit 0
 fi
 
