@@ -6,6 +6,9 @@ NC='\033[0m'
 
 # https://docs.github.com/en/rest/overview/api-versions
 GH_REST_API_VERSION="2022-11-28"
+# The minimum fzf version that the user needs to run all interactive commands.
+MIN_FZF_VERSION="0.29.0"
+
 # Enable terminal-style output even when the output is redirected.
 export GH_FORCE_TTY=100%
 # Disable the gh pager
@@ -90,6 +93,11 @@ while getopts 'e:f:n:pawhsr' flag; do
         ;;
     esac
 done
+
+# for comparing multi-digit version numbers https://apple.stackexchange.com/a/123408/11374
+version() {
+    echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'
+}
 
 get_notifs() {
     page_num=$1
@@ -231,6 +239,14 @@ elif [[ $print_static_flag == "false" ]]; then
         echo "error: install \`fzf\` or use the -s flag" >&2
         exit 1
     fi
+    USER_FZF_VERSION="$(fzf --version)"
+    if [ "$(version $MIN_FZF_VERSION)" -ge "$(version "$USER_FZF_VERSION")" ]; then
+        echo "Error: \`fzf\` was found, but it is too old".
+        echo "Your \`fzf\` version is: $USER_FZF_VERSION".
+        echo "Minimum required \`fzf\` version is: $MIN_FZF_VERSION"
+        exit 1
+    fi
+
     select_notif "$notifs"
 else
     echo "$notifs"
