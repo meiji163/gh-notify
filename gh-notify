@@ -185,7 +185,7 @@ select_notif() {
     # See the man page (man fzf) for an explanation of the arguments.
     # The key combination ctrl-m is a synonym for enter,
     # therefore the key to mark notifications as read shall not be ctrl-m.
-    selection=$(fzf <<<"$notif_msg" --ansi --no-multi \
+    selection=$(SHELL="bash" fzf <<<"$notif_msg" --ansi --no-multi \
         --reverse --info=inline --pointer='▶' \
         --border horizontal --color "border:#778899" \
         --header $'? - Toggle Help\n\n' --color 'header:italic:dim' \
