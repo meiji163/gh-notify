@@ -15,10 +15,10 @@ Install the [Fuzzy Finder (fzf)](https://github.com/junegunn/fzf#installation) f
 ![demo](https://user-images.githubusercontent.com/92653266/186245012-46560f5f-e44f-45fe-8f71-86009c61305f.gif)
 
 ```
-gh notify [-Flag]
+gh notify [Flags]
 ```
 
-| Flag   | Description                                             | Example              |
+| Flags  | Description                                             | Example              |
 | ------ | ------------------------------------------------------- | -------------------- |
 | <none> | show all unread notifications                           | gh notify            |
 | -a     | show all (read/ unread) notifications                   | gh notify -a         |
@@ -31,21 +31,23 @@ gh notify [-Flag]
 | -w     | display the preview window in interactive mode          | gh notify -an 10 -w  |
 | -h     | show the help page                                      | gh notify -h         |
 
-### HotKeys for interactive mode with Fuzzy Finder (fzf)
+### Key Bindings fzf
 
-| HotKey   | Description                                         |
-| -------- | --------------------------------------------------- |
-| ?        | toggle help                                         |
-| tab      | toggle preview notification                         |
-| enter    | print notification and exit                         |
-| shift+↑↓ | scroll the preview up/ down                         |
-| ctrl+b   | open notification in browser                        |
-| ctrl+d   | view diff                                           |
-| ctrl+p   | view diff in patch format                           |
-| ctrl+r   | mark all displayed notifications as read and reload |
-| ctrl+x   | write a comment with the editor and exit            |
-| esc      | exit                                                |
+| Keys      | Description                                         |
+| --------- | --------------------------------------------------- |
+| ?         | toggle help                                         |
+| enter     | print notification and exit                         |
+| tab       | toggle preview notification                         |
+| shift+tab | change preview window size                          |
+| shift+↑↓  | scroll the preview up/ down                         |
+| ctrl+b    | open notification in browser                        |
+| ctrl+d    | view diff                                           |
+| ctrl+p    | view diff in patch format                           |
+| ctrl+r    | mark all displayed notifications as read and reload |
+| ctrl+x    | write a comment with the editor and exit            |
+| esc       | exit                                                |
 
+---
 ## Customizations
 
 ### Fuzzy Finder (fzf)
@@ -62,9 +64,7 @@ export FZF_DEFAULT_OPTS="
 --bind 'alt-c:clear-query'
 --bind 'alt-u:first,alt-d:last'
 --bind 'alt-r:refresh-preview'
---bind 'ctrl-w:preview-half-page-up,ctrl-s:preview-half-page-down'
-..."`
-
+--bind 'ctrl-w:preview-half-page-up,ctrl-s:preview-half-page-down'"`
 ```
 
 ### GitHub command line tool (gh)
