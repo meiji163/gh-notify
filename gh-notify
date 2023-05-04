@@ -204,7 +204,7 @@ select_notif() {
             --expect "enter,esc,ctrl-x" | tr '\n' ' '
     )
 
-    # Hotkey actions that close fzf are defined below
+    # actions that close fzf are defined below
     read -r key _ _ repo type num _ <<<"$selection"
     [[ -z "$type" ]] && exit 0
     case "$key" in

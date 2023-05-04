@@ -31,9 +31,9 @@ gh notify [Flags]
 | -w     | display the preview window in interactive mode          | gh notify -an 10 -w  |
 | -h     | show the help page                                      | gh notify -h         |
 
-### HotKeys for interactive mode with Fuzzy Finder (fzf)
+### Key Bindings fzf
 
-| HotKey    | Description                                         |
+| Keys      | Description                                         |
 | --------- | --------------------------------------------------- |
 | ?         | toggle help                                         |
 | enter     | print notification and exit                         |
