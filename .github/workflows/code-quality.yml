@@ -1,0 +1,21 @@
+---
+name: code-quality
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      # https://github.com/crate-ci/typos
+      - uses: crate-ci/typos@master
+      # https://github.com/reviewdog/action-shellcheck
+      - uses: reviewdog/action-shellcheck@master
+        with:
+          reporter: github-check
+          pattern: gh-notify
+          fail_on_error: true
+          github_token: ${{ secrets.github_token }}
