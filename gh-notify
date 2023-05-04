@@ -22,7 +22,7 @@ WHITE_BOLD='\033[1m'
 
 # Create help message with colored text
 # IMPORTANT: Keep it synchronized with the README, but without the Examples.
-# IMPORTANT: Use an unquoted delimiter (EOF) to have the variable expanded.
+# IMPORTANT: Use an unquoted delimiter (EOF) to have the variables expanded.
 HELP_TEXT=$(
     cat <<EOF
 ${WHITE_BOLD}Usage${NC}
@@ -189,8 +189,9 @@ select_notif() {
             --ansi --no-multi \
             --reverse --info=inline --pointer='▶' \
             --border horizontal --color "border:#778899" \
-            --header $'? - Toggle Help\n\n' --color 'header:italic:dim' \
-            --header-first --bind "change:first" \
+            --header "? Help · esc Quit" --color 'header:green:italic:dim' \
+            --prompt "GitHub Notifications > " \
+            --bind "change:first" \
             --bind "?:toggle-preview+change-preview:echo -e '$HELP_TEXT'" \
             --bind "ctrl-b:execute-silent:$open_notification_browser" \
             --bind "ctrl-d:toggle-preview+change-preview:if grep -q PullRequest <<<{4}; then gh pr diff {5} -R {3} | $diff_pager; else $preview_notification; fi" \
