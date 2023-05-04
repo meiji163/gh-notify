@@ -198,7 +198,7 @@ select_notif() {
         --bind "tab:toggle-preview+change-preview:$preview_notification" \
         --preview-window wrap:"$preview_window_visibility":50%:right:border-left \
         --preview "$preview_notification" \
-        --expect "enter,ctrl-x" | tr '\n' ' ')
+        --expect "enter,esc,ctrl-x" | tr '\n' ' ')
 
     # Hotkey actions that close fzf are defined below
     read -r key _ _ repo type num _ <<<"$selection"
@@ -215,6 +215,7 @@ select_notif() {
             echo "Notification preview for $type is not supported."
         fi
         ;;
+    esc) exit 0 ;;
     ctrl-x)
         if grep -qE "Issue|PullRequest" <<<"$type"; then
             gh issue comment "${num}" -R "$repo"
