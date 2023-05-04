@@ -33,19 +33,21 @@ gh notify [-Flag]
 
 ### HotKeys for interactive mode with Fuzzy Finder (fzf)
 
-| HotKey   | Description                                         |
-| -------- | --------------------------------------------------- |
-| ?        | toggle help                                         |
-| tab      | toggle preview notification                         |
-| enter    | print notification and exit                         |
-| shift+↑↓ | scroll the preview up/ down                         |
-| ctrl+b   | open notification in browser                        |
-| ctrl+d   | view diff                                           |
-| ctrl+p   | view diff in patch format                           |
-| ctrl+r   | mark all displayed notifications as read and reload |
-| ctrl+x   | write a comment with the editor and exit            |
-| esc      | exit                                                |
+| HotKey    | Description                                         |
+| --------- | --------------------------------------------------- |
+| ?         | toggle help                                         |
+| enter     | print notification and exit                         |
+| tab       | toggle preview notification                         |
+| shift+tab | change preview window size                          |
+| shift+↑↓  | scroll the preview up/ down                         |
+| ctrl+b    | open notification in browser                        |
+| ctrl+d    | view diff                                           |
+| ctrl+p    | view diff in patch format                           |
+| ctrl+r    | mark all displayed notifications as read and reload |
+| ctrl+x    | write a comment with the editor and exit            |
+| esc       | exit                                                |
 
+---
 ## Customizations
 
 ### Fuzzy Finder (fzf)
@@ -62,9 +64,7 @@ export FZF_DEFAULT_OPTS="
 --bind 'alt-c:clear-query'
 --bind 'alt-u:first,alt-d:last'
 --bind 'alt-r:refresh-preview'
---bind 'ctrl-w:preview-half-page-up,ctrl-s:preview-half-page-down'
-..."`
-
+--bind 'ctrl-w:preview-half-page-up,ctrl-s:preview-half-page-down'"`
 ```
 
 ### GitHub command line tool (gh)

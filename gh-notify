@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
-set -e -o pipefail
-
-GREEN='\033[0;32m'
-NC='\033[0m'
+set -eo pipefail
 
 # https://docs.github.com/en/rest/overview/api-versions
 GH_REST_API_VERSION="2022-11-28"
@@ -19,44 +16,44 @@ export GH_PAGER="cat"
 # NotificationSubjectTypes:
 # CheckSuite, Commit, Discussion, Issue, PullRequest, Release, RepositoryVulnerabilityAlert, ...
 
-help() {
-    # IMPORTANT: keep it synchronized with the README, but without the Examples
-    # Leave one line blank at the beginning and end, and two between sections. This looks cleaner.
+GREEN='\033[0;32m'
+NC='\033[0m'
+WHITE_BOLD='\033[1m'
+
+# Create help message with colored text
+# IMPORTANT: Keep it synchronized with the README, but without the Examples.
+# IMPORTANT: Use an unquoted delimiter (EOF) to have the variable expanded.
+HELP_TEXT=$(
     cat <<EOF
+${WHITE_BOLD}Usage${NC}
+  gh notify [-Flags]
 
-    gh notify [-Flag]
+${WHITE_BOLD}Flags${NC}
+  ${GREEN}<none>${NC}  show all unread notifications
+  ${GREEN}-a    ${NC}  show all (read/ unread) notifications
+  ${GREEN}-r    ${NC}  mark all notifications as read
+  ${GREEN}-e    ${NC}  exclude notifications matching a string (REGEX support)
+  ${GREEN}-f    ${NC}  filter notifications matching a string (REGEX support)
+  ${GREEN}-s    ${NC}  print a static display
+  ${GREEN}-n NUM${NC}  max number of notifications to show
+  ${GREEN}-p    ${NC}  show only participating or mentioned notifications
+  ${GREEN}-w    ${NC}  display the preview window in interactive mode
+  ${GREEN}-h    ${NC}  show the help page
 
-Flag   │ Description
-───────│───────────────
-<none> │ show all unread notifications
--a     │ show all (read/ unread) notifications
--r     │ mark all notifications as read
--e     │ exclude notifications matching a string (REGEX support)
--f     │ filter notifications matching a string (REGEX support)
--s     │ print a static display
--n NUM │ max number of notifications to show
--p     │ show only participating or mentioned notifications
--w     │ display the preview window in interactive mode
--h     │ show the help page
-
-
-    Interactive mode with Fuzzy Finder (fzf)
-
-HotKey   │ Description
-─────────│───────────────
-?        │ toggle help
-tab      │ toggle preview notification
-enter    │ print notification and exit
-shift+↑↓ │ scroll the preview up/ down
-ctrl+b   │ open notification in browser
-ctrl+d   │ view diff
-ctrl+p   │ view diff in patch format
-ctrl+r   │ mark all displayed notifications as read and reload
-ctrl+x   │ write a comment with the editor and exit
-esc      │ exit
-
+${WHITE_BOLD}Key Bindings fzf${NC}
+  ${GREEN}?        ${NC}  toggle help
+  ${GREEN}enter    ${NC}  print notification and exit
+  ${GREEN}tab      ${NC}  toggle preview notification
+  ${GREEN}shift+tab${NC}  change preview window size
+  ${GREEN}shift+↑↓ ${NC}  scroll the preview up/ down
+  ${GREEN}ctrl+b   ${NC}  open notification in browser
+  ${GREEN}ctrl+d   ${NC}  view diff
+  ${GREEN}ctrl+p   ${NC}  view diff in patch format
+  ${GREEN}ctrl+r   ${NC}  mark all displayed notifications as read and reload
+  ${GREEN}ctrl+x   ${NC}  write a comment with the editor and exit
+  ${GREEN}esc      ${NC}  exit
 EOF
-}
+)
 
 include_all_flag='false'
 preview_window_visibility='hidden'
@@ -84,11 +81,13 @@ while getopts 'e:f:n:pawhsr' flag; do
     s) print_static_flag='true' ;;
     r) mark_read_flag='true' ;;
     h)
-        help
+        # the -e option to enable the interpretation of backslash escapes,
+        # so that the ANSI escape sequences are correctly interpreted as color codes
+        echo -e "$HELP_TEXT"
         exit 0
         ;;
     *)
-        help
+        echo -e "$HELP_TEXT"
         exit 1
         ;;
     esac
@@ -185,20 +184,24 @@ select_notif() {
     # See the man page (man fzf) for an explanation of the arguments.
     # The key combination ctrl-m is a synonym for enter,
     # therefore the key to mark notifications as read shall not be ctrl-m.
-    selection=$(SHELL="bash" fzf <<<"$notif_msg" --ansi --no-multi \
-        --reverse --info=inline --pointer='▶' \
-        --border horizontal --color "border:#778899" \
-        --header $'? - Toggle Help\n\n' --color 'header:italic:dim' \
-        --header-first --bind "change:first" \
-        --bind "?:toggle-preview+change-preview:printf \"Help\n%s\" \"$(help)\"" \
-        --bind "ctrl-b:execute-silent:$open_notification_browser" \
-        --bind "ctrl-d:toggle-preview+change-preview:if grep -q PullRequest <<<{4}; then gh pr diff {5} -R {3} | $diff_pager; else $preview_notification; fi" \
-        --bind "ctrl-p:toggle-preview+change-preview:if grep -q PullRequest <<<{4}; then gh pr diff {5} --patch -R {3} | $diff_pager; else  $preview_notification; fi" \
-        --bind "ctrl-r:+execute-silent($fzf_mark_read)+reload:$reload_arguments" \
-        --bind "tab:toggle-preview+change-preview:$preview_notification" \
-        --preview-window wrap:"$preview_window_visibility":50%:right:border-left \
-        --preview "$preview_notification" \
-        --expect "enter,esc,ctrl-x" | tr '\n' ' ')
+    selection=$(
+        SHELL="bash" fzf <<<"$notif_msg" \
+            --ansi --no-multi \
+            --reverse --info=inline --pointer='▶' \
+            --border horizontal --color "border:#778899" \
+            --header $'? - Toggle Help\n\n' --color 'header:italic:dim' \
+            --header-first --bind "change:first" \
+            --bind "?:toggle-preview+change-preview:echo -e '$HELP_TEXT'" \
+            --bind "ctrl-b:execute-silent:$open_notification_browser" \
+            --bind "ctrl-d:toggle-preview+change-preview:if grep -q PullRequest <<<{4}; then gh pr diff {5} -R {3} | $diff_pager; else $preview_notification; fi" \
+            --bind "ctrl-p:toggle-preview+change-preview:if grep -q PullRequest <<<{4}; then gh pr diff {5} --patch -R {3} | $diff_pager; else  $preview_notification; fi" \
+            --bind "ctrl-r:+execute-silent($fzf_mark_read)+reload:$reload_arguments" \
+            --bind "tab:toggle-preview+change-preview:$preview_notification" \
+            --bind 'btab:change-preview-window(75%:nohidden|75%:down:nohidden:border-top|nohidden)' \
+            --preview-window wrap:"$preview_window_visibility":50%:right:border-left \
+            --preview "$preview_notification" \
+            --expect "enter,esc,ctrl-x" | tr '\n' ' '
+    )
 
     # Hotkey actions that close fzf are defined below
     read -r key _ _ repo type num _ <<<"$selection"
