@@ -26,7 +26,7 @@ WHITE_BOLD='\033[1m'
 HELP_TEXT=$(
     cat <<EOF
 ${WHITE_BOLD}Usage${NC}
-  gh notify [-Flags]
+  gh notify [Flags]
 
 ${WHITE_BOLD}Flags${NC}
   ${GREEN}<none>${NC}  show all unread notifications

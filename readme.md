@@ -15,10 +15,10 @@ Install the [Fuzzy Finder (fzf)](https://github.com/junegunn/fzf#installation) f
 ![demo](https://user-images.githubusercontent.com/92653266/186245012-46560f5f-e44f-45fe-8f71-86009c61305f.gif)
 
 ```
-gh notify [-Flag]
+gh notify [Flags]
 ```
 
-| Flag   | Description                                             | Example              |
+| Flags  | Description                                             | Example              |
 | ------ | ------------------------------------------------------- | -------------------- |
 | <none> | show all unread notifications                           | gh notify            |
 | -a     | show all (read/ unread) notifications                   | gh notify -a         |
