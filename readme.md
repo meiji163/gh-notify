@@ -33,20 +33,20 @@ gh notify [Flags]
 
 ### Key Bindings fzf
 
-| Keys      | Description                                         |
-| --------- | --------------------------------------------------- |
-| ?         | toggle help                                         |
-| enter     | print notification, marked as read and exit         |
-| tab       | toggle preview notification                         |
-| shift+tab | change preview window size                          |
-| shift+↑↓  | scroll the preview up/ down                         |
-| ctrl+b    | open notification in browser                        |
-| ctrl+d    | view diff                                           |
-| ctrl+p    | view diff in patch format                           |
-| ctrl+r    | mark all displayed notifications as read and reload |
-| ctrl+t    | mark the selected notification as read and reload   |
-| ctrl+x    | write a comment with the editor and exit            |
-| esc       | exit                                                |
+| Keys                           | Description                                         |
+| ------------------------------ | --------------------------------------------------- |
+| <kbd>?</kbd>                   | toggle help                                         |
+| <kbd>enter</kbd>               | print and mark the notification as read and quit    |
+| <kbd>tab</kbd>                 | toggle preview notification                         |
+| <kbd>shift</kbd><kbd>tab</kbd> | change preview window size                          |
+| <kbd>shift</kbd><kbd>↑↓</kbd>  | scroll the preview up/ down                         |
+| <kbd>ctrl</kbd><kbd>b</kbd>    | open notification in browser                        |
+| <kbd>ctrl</kbd><kbd>d</kbd>    | view diff                                           |
+| <kbd>ctrl</kbd><kbd>p</kbd>    | view diff in patch format                           |
+| <kbd>ctrl</kbd><kbd>r</kbd>    | mark all displayed notifications as read and reload |
+| <kbd>ctrl</kbd><kbd>t</kbd>    | mark notification as read and reload                |
+| <kbd>ctrl</kbd><kbd>x</kbd>    | write a comment with the editor and quit            |
+| <kbd>esc</kbd>                 | quit                                                |
 
 ---
 ## Customizations

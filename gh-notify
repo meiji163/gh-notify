@@ -42,7 +42,7 @@ ${WHITE_BOLD}Flags${NC}
 
 ${WHITE_BOLD}Key Bindings fzf${NC}
   ${GREEN}?        ${NC}  toggle help
-  ${GREEN}enter    ${NC}  print notification, marked as read and exit
+  ${GREEN}enter    ${NC}  print and mark the notification as read and quit
   ${GREEN}tab      ${NC}  toggle preview notification
   ${GREEN}shift+tab${NC}  change preview window size
   ${GREEN}shift+↑↓ ${NC}  scroll the preview up/ down
@@ -51,8 +51,8 @@ ${WHITE_BOLD}Key Bindings fzf${NC}
   ${GREEN}ctrl+p   ${NC}  view diff in patch format
   ${GREEN}ctrl+r   ${NC}  mark all displayed notifications as read and reload
   ${GREEN}ctrl+t   ${NC}  mark notification as read and reload
-  ${GREEN}ctrl+x   ${NC}  write a comment with the editor and exit
-  ${GREEN}esc      ${NC}  exit
+  ${GREEN}ctrl+x   ${NC}  write a comment with the editor and quit
+  ${GREEN}esc      ${NC}  quit
 EOF
 )
 
@@ -211,10 +211,10 @@ select_notif() {
     selection=$(
         SHELL="bash" fzf <<<"$notif_msg" \
             --ansi --no-multi \
-            --with-nth 3.. \
+            --delimiter '  ' --with-nth 3.. \
             --reverse --info=inline --pointer="▶" \
             --border horizontal --color "border:dim" \
-            --header "? Help · esc Quit" --color "header:green:italic:dim" \
+            --header "? help · esc quit" --color "header:green:italic:dim" \
             --prompt "GitHub Notifications > " --color "prompt:80,info:40" \
             --bind "change:first" \
             --bind "?:toggle-preview+change-preview:echo -e '$HELP_TEXT'" \
