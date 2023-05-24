@@ -36,7 +36,7 @@ gh notify [Flags]
 | Keys      | Description                                         |
 | --------- | --------------------------------------------------- |
 | ?         | toggle help                                         |
-| enter     | print notification and exit                         |
+| enter     | print notification, marked as read and exit         |
 | tab       | toggle preview notification                         |
 | shift+tab | change preview window size                          |
 | shift+↑↓  | scroll the preview up/ down                         |
@@ -44,6 +44,7 @@ gh notify [Flags]
 | ctrl+d    | view diff                                           |
 | ctrl+p    | view diff in patch format                           |
 | ctrl+r    | mark all displayed notifications as read and reload |
+| ctrl+t    | mark the selected notification as read and reload   |
 | ctrl+x    | write a comment with the editor and exit            |
 | esc       | exit                                                |
 
