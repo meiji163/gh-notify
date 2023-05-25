@@ -54,6 +54,10 @@ ${WHITE_BOLD}Key Bindings fzf${NC}
   ${GREEN}ctrl+t   ${NC}  mark notification as read and reload
   ${GREEN}ctrl+x   ${NC}  write a comment with the editor and quit
   ${GREEN}esc      ${NC}  quit
+
+${WHITE_BOLD}Example${NC}
+    # View the last 20 notifications
+    gh notify -an 20
 EOF
 )
 
