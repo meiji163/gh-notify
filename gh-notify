@@ -2,7 +2,7 @@
 set -eo pipefail
 
 # https://docs.github.com/en/rest/overview/api-versions
-GH_REST_API_VERSION="2022-11-28"
+GH_REST_API_VERSION="X-GitHub-Api-Version:2022-11-28"
 # The minimum fzf version that the user needs to run all interactive commands.
 MIN_FZF_VERSION="0.29.0"
 
@@ -17,6 +17,7 @@ export GH_PAGER="cat"
 # CheckSuite, Commit, Discussion, Issue, PullRequest, Release, RepositoryVulnerabilityAlert, ...
 
 GREEN='\033[0;32m'
+MAGENTA='\033[0;35m'
 NC='\033[0m'
 WHITE_BOLD='\033[1m'
 
@@ -115,29 +116,27 @@ get_notifs() {
     fi
     printf >&2 "." # "marching ants" because sometimes this takes a bit.
     # Use '-F/--field' to pass a variable that is a number, Boolean, or null. Use '-f/--raw-field' for other variables.
-    gh api --header "X-GitHub-Api-Version:$GH_REST_API_VERSION" --method GET notifications --cache=0s \
+    # shellcheck disable=SC2016
+    gh api --header "$GH_REST_API_VERSION" --method GET notifications --cache=0s \
         --field per_page="$local_page_size" --field page="$page_num" \
         --field participating="$only_participating_flag" --field all="$include_all_flag" \
         --template '
     {{- range . -}}
-        {{- /* Comment: Hidden data points without color codes used in GraphQL query */ -}}
+        {{- /* COMMENT: Hidden data points without color codes used in GraphQL query */ -}}
         {{- printf "%s\t%s\t" (timefmt "2006-01" .updated_at) .repository.full_name -}}
         {{- /* COMMENT: timefmt must use the reference time Mon Jan 2 15:04:05 MST 2006 to format a given time */ -}}
-        {{- printf "%s\t%s\t%s\t%s\t" .id (timefmt "02/Jan 15:04" .updated_at | color "gray+h") .subject.type .subject.title -}}
+        {{- $thread_state := "READ" -}}
+        {{- if .unread -}}{{- $thread_state = "UNREAD" -}}{{- end -}}
+        {{- printf "%s\t%s\t%s\t" .id $thread_state (timefmt "02/Jan 15:04" .updated_at | color "gray+h") -}}
         {{- printf "%s%s%s\t" (.repository.owner.login | color "cyan+h") ("/" | color "gray+h") (.repository.name | color "cyan+hb") -}}
-        {{- if .subject.url -}}{{- printf "%s\t" .subject.url -}}
-            {{- else -}}{{- printf " \t" -}}
-        {{- end -}}
-        {{- /* COMMENT: Unicode for ● (Black Circle) */ -}}
-        {{- if .unread -}}{{- printf "%s\n" ("\u25cf" | color "magenta") -}}
-            {{- /* COMMENT: Empty strings are colorized to keep the columns in line. */ -}}
-            {{- else -}}{{- printf "%s\n" ("" | color "magenta") -}}
-        {{- end -}}
+        {{- $url := "NONE" -}}
+        {{- if .subject.url -}}{{- $url = .subject.url -}}{{- end -}}
+        {{- printf "%s\t%s\t%s\n" .subject.type $url .subject.title -}}
     {{- end -}}'
 }
 
 print_notifs() {
-    local hidden_updated_at hidden_repository_full_name thread_id thread_id_state timefmt type title repo url unread_symbol number graphql_query_discussion
+    local hidden_updated_at hidden_repository_full_name thread_id thread_state timefmt repo type url unread_symbol title number graphql_query_discussion
     all_notifs=""
     page_num=1
     while true; do
@@ -148,36 +147,34 @@ print_notifs() {
             page_num=$((page_num + 1))
         fi
         new_notifs=$(
-            echo "$page" | while IFS=$'\t' read -r hidden_updated_at hidden_repository_full_name thread_id timefmt type title repo url unread_symbol; do
+            echo "$page" | while IFS=$'\t' read -r hidden_updated_at hidden_repository_full_name thread_id thread_state timefmt repo type url title number; do
                 if grep -q "Discussion" <<<"$type"; then
                     graphql_query_discussion=$'query ($filter: String!) { search(query: $filter, type: DISCUSSION, first: 1) { nodes { ... on Discussion { number }}}}'
                     # https://docs.github.com/en/search-github/searching-on-github/searching-discussions
                     number=$(gh api graphql --cache=100h --raw-field filter="$title in:title updated:>=$hidden_updated_at repo:$hidden_repository_full_name" --raw-field query="$graphql_query_discussion" --jq '.data.search.nodes | .[].number')
-                elif grep -q "Commit" <<<"$type"; then
-                    number=$(basename "$url" | head -c 7)
-                elif grep -q "Release" <<<"$type"; then
-                    if grep -q "^http" <<<"$url" && gh api --cache=20s --header "X-GitHub-Api-Version:$GH_REST_API_VERSION" --method GET "$url" --silent 2>/dev/null; then
-                        #  URL works
-                        release_info=()
-                        while IFS='' read -r line; do release_info+=("$line"); done < <(gh api --cache=20s --header "X-GitHub-Api-Version:$GH_REST_API_VERSION" --method GET "$url" --jq '.tag_name, .prerelease')
-                        number="${release_info[0]}"
-                        "${release_info[1]}" && type="Pre-release"
+                elif ! grep -q "^NONE" <<<"$url"; then
+                    if grep -q "Commit" <<<"$type"; then
+                        number=$(basename "$url" | head -c 7)
+                    elif grep -q "Release" <<<"$type"; then
+                        if gh api --cache=20s --header "$GH_REST_API_VERSION" --method GET "$url" --silent 2>/dev/null; then
+                            release_info=()
+                            while IFS='' read -r line; do release_info+=("$line"); done < <(gh api --cache=20s --header "$GH_REST_API_VERSION" --method GET "$url" --jq '.tag_name, .prerelease')
+                            number="${release_info[0]}"
+                            "${release_info[1]}" && type="Pre-release"
+                        else
+                            continue
+                        fi
                     else
-                        #  URL does not work, no need to show the notification
-                        continue
+                        # gh api calls cost time, try to avoid them as much as possible
+                        number=${url/*\//#}
                     fi
-                else
-                    # gh api calls cost time, try to avoid them as much as possible
-                    # ${variable//search/replace} - https://wiki.bash-hackers.org/syntax/pe
-                    number=${url/*\//#}
                 fi
 
-                if [[ "$unread_symbol" =~ $'\u25cf' ]]; then
-                    thread_id_state="UNREAD"
-                else
-                    thread_id_state="READ"
-                fi
-                printf "\n%s\t%s\t%s\t%s\t%s ${GREEN}%s${NC} %s\t%s\n" "$thread_id" "$thread_id_state" "$timefmt" "$repo" "$type" "$number" "$unread_symbol" "$title"
+                unread_symbol=""
+                # Unicode for ● (Black Circle)
+                [[ "$thread_state" = "UNREAD" ]] && unread_symbol=$'\u25cf'
+
+                printf "\n%s\t%s\t%s\t%s\t%s ${GREEN}%s${NC} ${MAGENTA}%s${NC}\t%s\n" "$thread_id" "$thread_state" "$timefmt" "$repo" "$type" "$number" "$unread_symbol" "$title"
             done
         )
         all_notifs="$all_notifs$new_notifs"
@@ -202,8 +199,8 @@ select_notif() {
     open_notification_browser='if grep -q CheckSuite <<<{6}; then open https://github.com/{5}/actions ; elif grep -q Commit <<<{6}; then gh browse {7} -R {5} ; elif grep -q Discussion <<<{6}; then open https://github.com/{5}/discussions/{7} ; elif grep -qE "Issue|PullRequest" <<<{6}; then gh issue view {7} -wR {5}; elif grep -q "[Rr]elease" <<<{6}; then gh release view {7} -wR {5}; else gh repo view -w {5}; fi'
     preview_notification='echo \[{3} {4} - {6}\] ;if grep -q Issue <<<{6}; then gh issue view {7} -R {5} --comments; elif grep -q PullRequest <<<\"{6}\"; then gh pr view {7} -R {5} --comments; elif grep -q "[Rr]elease" <<<{6}; then gh release view {7} -R {5}; else echo "Notification preview for {6} is not supported."; fi'
     # If this were passed as a function to fzf, it would be called immediately when fzf is called, in spite of the fact that the assigned hotkey was not triggered.
-    mark_all_read="gh api --silent --header X-GitHub-Api-Version:$GH_REST_API_VERSION --method PUT notifications --raw-field last_read_at=$timestamp --field read=true"
-    mark_individual_read="if grep -q UNREAD <<<{2}; then gh api --silent --header X-GitHub-Api-Version:$GH_REST_API_VERSION --method PATCH notifications/threads/{1}; fi"
+    mark_all_read="gh api --silent --header $GH_REST_API_VERSION --method PUT notifications --raw-field last_read_at=$timestamp --field read=true"
+    mark_individual_read="if grep -q UNREAD <<<{2}; then gh api --silent --header $GH_REST_API_VERSION --method PATCH notifications/threads/{1}; fi"
 
     # See the man page (man fzf) for an explanation of the arguments.
     # The key combination ctrl-m is a synonym for enter,
@@ -231,7 +228,7 @@ select_notif() {
     )
 
     # actions that close fzf are defined below
-    read -r key thread_id thread_id_state _ _ repo type num _ <<<"$selection"
+    read -r key thread_id thread_state _ _ repo type num _ <<<"$selection"
     [[ -z "$type" ]] && exit 0
     case "$key" in
     enter)
@@ -245,8 +242,8 @@ select_notif() {
             echo "Notification preview for $type is not supported."
         fi
 
-        if grep -q UNREAD <<<"$thread_id_state"; then
-            gh api --silent --header X-GitHub-Api-Version:$GH_REST_API_VERSION --method PATCH notifications/threads/"$thread_id" ||
+        if grep -q UNREAD <<<"$thread_state"; then
+            gh api --silent --header $GH_REST_API_VERSION --method PATCH notifications/threads/"$thread_id" ||
                 { echo "Failed to mark notification as read." >&2 && exit 1; }
         fi
         ;;
@@ -262,7 +259,7 @@ select_notif() {
 }
 
 if [[ $mark_read_flag == "true" ]]; then
-    gh api --header "X-GitHub-Api-Version:$GH_REST_API_VERSION" --method PUT notifications --raw-field last_read_at="$timestamp" --field read=true --silent
+    gh api --header "$GH_REST_API_VERSION" --method PUT notifications --raw-field last_read_at="$timestamp" --field read=true --silent
     exit 0
 fi
 
@@ -284,7 +281,8 @@ elif [[ $print_static_flag == "false" ]]; then
     fi
     select_notif "$notifs"
 elif [[ $print_fzf_static_reload_flag == "true" ]]; then
-    # when reloading fzf, the input shall not be truncated as this would break the layout
+    # this here is used as input for fzf when reloading,
+    # it should not be truncated as this would affect the functionality in fzf
     echo "$notifs"
 else
     # remove the first two eleemnts from the static display
