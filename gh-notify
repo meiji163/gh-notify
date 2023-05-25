@@ -273,7 +273,10 @@ fi
 
 notifs="$(print_notifs)"
 if [[ -z "$notifs" ]]; then
-    echo "All caught up!"
+    # TODO: quit fzf if list is empty
+    # 2x NO-BREAK SPACE when fzf is reloaded and the list is empty,
+    # this message is displayed and the first two elements are hidden.
+    echo "    All caught up!"
     exit 0
 elif [[ $print_static_flag == "false" ]]; then
     if ! type -p fzf >/dev/null; then
