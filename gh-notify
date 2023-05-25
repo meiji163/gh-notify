@@ -262,6 +262,10 @@ select_notif() {
     esac
 }
 
+# quick check if you can connect to the GitHub API
+if ! gh api --silent --header "$GH_REST_API_VERSION" zen; then
+    exit 1
+fi
 if [[ $mark_read_flag == "true" ]]; then
     gh api --header "$GH_REST_API_VERSION" --method PUT notifications --raw-field last_read_at="$timestamp" --field read=true --silent
     exit 0
