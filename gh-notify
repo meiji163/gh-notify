@@ -51,7 +51,7 @@ ${WHITE_BOLD}Key Bindings fzf${NC}
   ${GREEN}ctrl+p   ${NC}  view diff in patch format
   ${GREEN}ctrl+r   ${NC}  mark all displayed notifications as read and reload
   ${GREEN}ctrl+t   ${NC}  mark notification as read and reload
-  ${GREEN}ctrl+x   ${NC}  write a comment with the editor and quit
+  ${GREEN}ctrl+x   ${NC}  write a comment with the editor, mark the notification as read and quit
   ${GREEN}esc      ${NC}  quit
 
 ${WHITE_BOLD}Example${NC}
@@ -142,15 +142,17 @@ get_notifs() {
             iso8601: now | strftime("%Y-%m-%dT%H:%M:%SZ"),
             thread_id: .id,
             thread_state: (if .unread then "UNREAD" else "READ" end),
+            comment_url: .subject.latest_comment_url | tostring | split("/") | last,
             timefmt: colored(.updated_at | fromdateiso8601 | strftime("%d/%b %H:%M"); "gray"),
             owner: colored(.repository.owner.login; "cyan"),
             name: colored(.repository.name; "cyan_bold"),
             type: .subject.type,
-            url: (if .subject.url then .subject.url else "NONE" end),
+            url_COMMENT: "Some infos have to be pulled from this URL in later steps, so no string modifications.",
+            url: .subject.url | tostring,
             unread_symbol: colored((if .unread then "\u25cf" else "\u00a0" end);"magenta"),
             title: .subject.title
         } |
-        "\(.hidden_updated_at)\t\(.hidden_repository_full_name)\t\(.iso8601)\t\(.thread_id)\t\(.thread_state)\t\(.timefmt)\t\(.owner)\/\(.name)\t\(.type)\t\(.url)\t\(.unread_symbol)\t\(.title)"'
+        "\(.hidden_updated_at)\t\(.hidden_repository_full_name)\t\(.iso8601)\t\(.thread_id)\t\(.thread_state)\t\(.comment_url)\t\(.timefmt)\t\(.owner)\/\(.name)\t\(.type)\t\(.url)\t\(.unread_symbol)\t\(.title)"'
 }
 
 print_notifs() {
@@ -165,12 +167,12 @@ print_notifs() {
             page_num=$((page_num + 1))
         fi
         new_notifs=$(
-            echo "$page" | while IFS=$'\t' read -r hidden_updated_at hidden_repository_full_name iso8601 thread_id thread_state timefmt repo type url unread_symbol title number; do
+            echo "$page" | while IFS=$'\t' read -r hidden_updated_at hidden_repository_full_name iso8601 thread_id thread_state comment_url timefmt repo type url unread_symbol title number; do
                 if grep -q "Discussion" <<<"$type"; then
                     graphql_query_discussion=$'query ($filter: String!) { search(query: $filter, type: DISCUSSION, first: 1) { nodes { ... on Discussion { number }}}}'
                     # https://docs.github.com/en/search-github/searching-on-github/searching-discussions
                     number=$(gh api graphql --cache=100h --raw-field filter="$title in:title updated:>=$hidden_updated_at repo:$hidden_repository_full_name" --raw-field query="$graphql_query_discussion" --jq '.data.search.nodes | .[].number')
-                elif ! grep -q "^NONE" <<<"$url"; then
+                elif ! grep -q "^null" <<<"$url"; then
                     if grep -q "Commit" <<<"$type"; then
                         number=$(basename "$url" | head -c 7)
                     elif grep -q "Release" <<<"$type"; then
@@ -188,7 +190,7 @@ print_notifs() {
                     fi
                 fi
 
-                printf "\n%s\t%s\t%s\t%s\t%s\t%s ${GREEN}%s${NC} %s\t%s\n" "$iso8601" "$thread_id" "$thread_state" "$timefmt" "$repo" "$type" "$number" "$unread_symbol" "$title"
+                printf "\n%s\t%s\t%s\t%s\t%s\t%s\t%s ${GREEN}%s${NC} %s\t%s\n" "$iso8601" "$thread_id" "$thread_state" "$comment_url" "$timefmt" "$repo" "$type" "$number" "$unread_symbol" "$title"
             done
         )
         all_notifs="$all_notifs$new_notifs"
@@ -205,14 +207,21 @@ print_notifs() {
     echo "$all_notifs" | grep -v "$exclusion_string" | grep "$filter_string" | column -t -s $'\t'
 }
 
+mark_individual_read() {
+    if grep -q UNREAD <<<"${1:?"input thread_state missing"}"; then
+        gh api --silent --header $GH_REST_API_VERSION --method PATCH notifications/threads/"${2:?"input thread_id missing"}" ||
+            { echo "Failed to mark notification as read." >&2 && exit 1; }
+    fi
+}
+
 select_notif() {
     local notif_msg diff_pager open_notification_browser preview_notification selection key repo type num
     notif_msg="$1"
     # https://dandavison.github.io/delta
     diff_pager=$'if type -p delta >/dev/null; then delta --width ${FZF_PREVIEW_COLUMNS:-$COLUMNS}; else cat; fi'
-    open_notification_browser='if grep -q CheckSuite <<<{7}; then open https://github.com/{6}/actions ; elif grep -q Commit <<<{7}; then gh browse {8} -R {6} ; elif grep -q Discussion <<<{7}; then open https://github.com/{6}/discussions/{8} ; elif grep -qE "Issue|PullRequest" <<<{7}; then gh issue view {8} -wR {6}; elif grep -q "[Rr]elease" <<<{7}; then gh release view {8} -wR {6}; else gh repo view -w {6}; fi'
-    preview_notification='echo \[{4} {5} - {7}\] ;if grep -q Issue <<<{7}; then gh issue view {8} -R {6} --comments; elif grep -q PullRequest <<<\"{7}\"; then gh pr view {8} -R {6} --comments; elif grep -q "[Rr]elease" <<<{7}; then gh release view {8} -R {6}; else echo "Notification preview for {7} is not supported."; fi'
-    # If this were passed as a function to fzf, it would be called immediately when fzf is called, in spite of the fact that the assigned hotkey was not triggered.
+    open_notification_browser=$'unhashed_num=$(cut -d "#" -f2 <<<{9});if grep -q CheckSuite <<<{8}; then open https://github.com/{7}/actions ; elif grep -q Commit <<<{8}; then gh browse {9} -R {7} ; elif grep -q Discussion <<<{8}; then open https://github.com/{7}/discussions/{9} ; elif grep -qE "Issue|PullRequest" <<<{8}; then if grep -q null <<<{4} || test {4} = "$unhashed_num"; then gh issue view {9} -wR {7}; else open https://github.com/{7}/issues/${unhashed_num}#issuecomment-{4}; fi; elif grep -q "[Rr]elease" <<<{8}; then gh release view {9} -wR {7}; else gh repo view -w {7}; fi'
+    preview_notification='echo \[{5} {6} - {8}\] ;if grep -q Issue <<<{8}; then gh issue view {9} -R {7} --comments; elif grep -q PullRequest <<<\"{8}\"; then gh pr view {9} -R {7} --comments; elif grep -q "[Rr]elease" <<<{8}; then gh release view {9} -R {7}; else echo "Notification preview for {8} is not supported."; fi'
+    # If these were passed as a function to fzf, it would be called immediately when fzf is called, in spite of the fact that the assigned hotkey was not triggered.
     mark_all_read="gh api --silent --header $GH_REST_API_VERSION --method PUT notifications --raw-field last_read_at={1} --field read=true"
     mark_individual_read="if grep -q UNREAD <<<{3}; then gh api --silent --header $GH_REST_API_VERSION --method PATCH notifications/threads/{2}; fi"
 
@@ -221,7 +230,7 @@ select_notif() {
     # therefore the key to mark notifications as read shall not be ctrl-m.
     selection=$(
         SHELL="bash" fzf <<<"$notif_msg" \
-            --ansi --no-multi --with-nth 4.. \
+            --ansi --no-multi --with-nth 5.. \
             --delimiter '\s+' \
             --reverse --info=inline --pointer="▶" \
             --border horizontal --color "border:dim" \
@@ -230,8 +239,8 @@ select_notif() {
             --bind "change:first" \
             --bind "?:toggle-preview+change-preview:echo -e '$HELP_TEXT'" \
             --bind "ctrl-b:execute-silent:$open_notification_browser" \
-            --bind "ctrl-d:toggle-preview+change-preview:if grep -q PullRequest <<<{7}; then gh pr diff {8} -R {6} | $diff_pager; else $preview_notification; fi" \
-            --bind "ctrl-p:toggle-preview+change-preview:if grep -q PullRequest <<<{7}; then gh pr diff {8} --patch -R {6} | $diff_pager; else  $preview_notification; fi" \
+            --bind "ctrl-d:toggle-preview+change-preview:if grep -q PullRequest <<<{8}; then gh pr diff {9} -R {7} | $diff_pager; else $preview_notification; fi" \
+            --bind "ctrl-p:toggle-preview+change-preview:if grep -q PullRequest <<<{8}; then gh pr diff {9} --patch -R {7} | $diff_pager; else  $preview_notification; fi" \
             --bind "ctrl-r:execute-silent($mark_all_read)+reload:$reload_arguments" \
             --bind "ctrl-t:execute-silent($mark_individual_read)+reload:$reload_arguments" \
             --bind "tab:toggle-preview+change-preview:$preview_notification" \
@@ -242,7 +251,7 @@ select_notif() {
     )
 
     # actions that close fzf are defined below
-    read -r key _ thread_id thread_state _ _ repo type num _ <<<"$selection"
+    read -r key _ thread_id thread_state _ _ _ repo type num _ <<<"$selection"
     [[ -z "$type" ]] && exit 0
     case "$key" in
     enter)
@@ -255,11 +264,7 @@ select_notif() {
         else
             echo "Notification preview for $type is not supported."
         fi
-
-        if grep -q UNREAD <<<"$thread_state"; then
-            gh api --silent --header $GH_REST_API_VERSION --method PATCH notifications/threads/"$thread_id" ||
-                { echo "Failed to mark notification as read." >&2 && exit 1; }
-        fi
+        mark_individual_read "$thread_state" "$thread_id"
         ;;
     esc) exit 0 ;;
     ctrl-x)
@@ -268,6 +273,7 @@ select_notif() {
         else
             echo "Writing comments for $type is not supported."
         fi
+        mark_individual_read "$thread_state" "$thread_id"
         ;;
     esac
 }
@@ -284,9 +290,9 @@ fi
 notifs="$(print_notifs)"
 if [[ -z "$notifs" ]]; then
     # TODO: exit fzf when the list is empty.
-    # 3x NO-BREAK SPACE when fzf is reloaded and the list is empty,
+    # 4x NO-BREAK SPACE when fzf is reloaded and the list is empty,
     # this message is displayed and the first three elements are hidden.
-    echo "      All caught up!"
+    echo "        All caught up!"
     exit 0
 elif [[ $print_static_flag == "false" ]]; then
     if ! type -p fzf >/dev/null; then
@@ -302,11 +308,11 @@ elif [[ $print_static_flag == "false" ]]; then
     fi
     select_notif "$notifs"
 elif [[ $print_fzf_static_reload_flag == "true" ]]; then
-    # this here is used as input for fzf when reloading,
-    # it should not be truncated as this would affect the functionality in fzf
+    # this is used as input for fzf when reloading,
+    # it should not be truncated, as this would affect the functionality of fzf
     echo "$notifs"
 else
-    # remove the first two eleemnts from the static display
+    # remove unimportant elements from the static display
     # '[[:blank:]]' matches horizontal whitespace characters (spaces/ tabs)
-    echo "$notifs" | sed -E 's/^([^[:blank:]]+[[:blank:]]+){3}//'
+    echo "$notifs" | sed -E 's/^([^[:blank:]]+[[:blank:]]+){4}//'
 fi
