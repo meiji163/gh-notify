@@ -284,10 +284,10 @@ fi
 
 notifs="$(print_notifs)"
 if [[ -z "$notifs" ]]; then
-    # TODO: exit fzf when the list is empty and remove no-break spaces.
-    # 4x NO-BREAK SPACE when fzf is reloaded and the list is empty,
-    # this message is displayed and the first elements are hidden.
-    echo "        All caught up!"
+    # TODO: exit fzf automatically if the list is empty after a reload
+    # workaround, since fzf hides the first elements with '-with-nth'
+    # if the list is empty on a reload, the message would be hidden, so `\b '(backspace) is added
+    echo -e '\b \b \b \b \bAll caught up!'
     exit 0
 elif [[ $print_static_flag == "false" ]]; then
     if ! type -p fzf >/dev/null; then
