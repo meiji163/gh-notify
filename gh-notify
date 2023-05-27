@@ -51,7 +51,7 @@ ${WHITE_BOLD}Key Bindings fzf${NC}
   ${GREEN}ctrl+p   ${NC}  view diff in patch format
   ${GREEN}ctrl+r   ${NC}  mark all displayed notifications as read and reload
   ${GREEN}ctrl+t   ${NC}  mark notification as read and reload
-  ${GREEN}ctrl+x   ${NC}  write a comment with the editor, mark the notification as read and quit
+  ${GREEN}ctrl+x   ${NC}  write a comment with the editor and quit
   ${GREEN}esc      ${NC}  quit
 
 ${WHITE_BOLD}Example${NC}
@@ -119,7 +119,6 @@ get_notifs() {
     fi
     printf >&2 "." # "marching ants" because sometimes this takes a bit.
     # Use '-F/--field' to pass a variable that is a number, Boolean, or null. Use '-f/--raw-field' for other variables.
-    # shellcheck disable=SC2016
     gh api --header "$GH_REST_API_VERSION" --method GET notifications --cache=0s \
         --field per_page="$local_page_size" --field page="$page_num" \
         --field participating="$only_participating_flag" --field all="$include_all_flag" \
@@ -160,7 +159,7 @@ print_notifs() {
     all_notifs=""
     page_num=1
     while true; do
-        page=$(get_notifs $page_num)
+        page=$(get_notifs $page_num) || { echo "Failed to get notifications." >&2 && exit 1; }
         if [ "$page" == "" ]; then
             break
         else
@@ -171,7 +170,7 @@ print_notifs() {
                 if grep -q "Discussion" <<<"$type"; then
                     graphql_query_discussion=$'query ($filter: String!) { search(query: $filter, type: DISCUSSION, first: 1) { nodes { ... on Discussion { number }}}}'
                     # https://docs.github.com/en/search-github/searching-on-github/searching-discussions
-                    number=$(gh api graphql --cache=100h --raw-field filter="$title in:title updated:>=$hidden_updated_at repo:$hidden_repository_full_name" --raw-field query="$graphql_query_discussion" --jq '.data.search.nodes | .[].number')
+                    number=$(gh api graphql --cache=100h --raw-field filter="$title in:title updated:>=$hidden_updated_at repo:$hidden_repository_full_name" --raw-field query="$graphql_query_discussion" --jq '.data.search.nodes | .[].number') || { echo "Failed GraphQL discussion query." >&2 && exit 1; }
                 elif ! grep -q "^null" <<<"$url"; then
                     if grep -q "Commit" <<<"$type"; then
                         number=$(basename "$url" | head -c 7)
@@ -192,7 +191,7 @@ print_notifs() {
 
                 printf "\n%s\t%s\t%s\t%s\t%s\t%s\t%s ${GREEN}%s${NC} %s\t%s\n" "$iso8601" "$thread_id" "$thread_state" "$comment_url" "$timefmt" "$repo" "$type" "$number" "$unread_symbol" "$title"
             done
-        )
+        ) || exit 1
         all_notifs="$all_notifs$new_notifs"
         # this is going to be a bit funky.
         # if you specify a number larger than 100
@@ -241,8 +240,8 @@ select_notif() {
             --bind "ctrl-b:execute-silent:$open_notification_browser" \
             --bind "ctrl-d:toggle-preview+change-preview:if grep -q PullRequest <<<{8}; then gh pr diff {9} -R {7} | $diff_pager; else $preview_notification; fi" \
             --bind "ctrl-p:toggle-preview+change-preview:if grep -q PullRequest <<<{8}; then gh pr diff {9} --patch -R {7} | $diff_pager; else  $preview_notification; fi" \
-            --bind "ctrl-r:execute-silent($mark_all_read)+reload:$reload_arguments" \
-            --bind "ctrl-t:execute-silent($mark_individual_read)+reload:$reload_arguments" \
+            --bind "ctrl-r:execute-silent($mark_all_read)+reload:$reload_arguments || true" \
+            --bind "ctrl-t:execute-silent($mark_individual_read)+reload:$reload_arguments || true" \
             --bind "tab:toggle-preview+change-preview:$preview_notification" \
             --bind "btab:change-preview-window(75%:nohidden|75%:down:nohidden:border-top|nohidden)" \
             --preview-window wrap:"$preview_window_visibility":50%:right:border-left \
@@ -278,20 +277,16 @@ select_notif() {
     esac
 }
 
-# quick check if you can connect to the GitHub API
-if ! gh api --silent --header "$GH_REST_API_VERSION" zen; then
-    exit 1
-fi
 if [[ $mark_read_flag == "true" ]]; then
-    gh api --header "$GH_REST_API_VERSION" --method PUT notifications --raw-field last_read_at="$timestamp" --field read=true --silent
+    gh api --header "$GH_REST_API_VERSION" --method PUT notifications --raw-field last_read_at="$timestamp" --field read=true --silent || { echo "Failed to mark notifications as read." >&2 && exit 1; }
     exit 0
 fi
 
 notifs="$(print_notifs)"
 if [[ -z "$notifs" ]]; then
-    # TODO: exit fzf when the list is empty.
+    # TODO: exit fzf when the list is empty and remove no-break spaces.
     # 4x NO-BREAK SPACE when fzf is reloaded and the list is empty,
-    # this message is displayed and the first three elements are hidden.
+    # this message is displayed and the first elements are hidden.
     echo "        All caught up!"
     exit 0
 elif [[ $print_static_flag == "false" ]]; then
