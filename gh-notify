@@ -175,12 +175,11 @@ print_notifs() {
                     if grep -q "Commit" <<<"$type"; then
                         number=$(basename "$url" | head -c 7)
                     elif grep -q "Release" <<<"$type"; then
-                        if gh api --cache=20s --header "$GH_REST_API_VERSION" --method GET "$url" --silent 2>/dev/null; then
-                            release_info=()
-                            while IFS='' read -r line; do release_info+=("$line"); done < <(gh api --cache=20s --header "$GH_REST_API_VERSION" --method GET "$url" --jq '.tag_name, .prerelease')
-                            number="${release_info[0]}"
-                            "${release_info[1]}" && type="Pre-release"
+                        # directly read the output into number and prerelease variables
+                        if IFS=$'\t' read -r number prerelease < <(gh api --cache=100h --header "$GH_REST_API_VERSION" --method GET "$url" --jq '[.tag_name, .prerelease] | @tsv'); then
+                            "$prerelease" && type="Pre-release"
                         else
+                            # it may happen that URLs are retrieved but are already dead and therefore skipped
                             continue
                         fi
                     else
