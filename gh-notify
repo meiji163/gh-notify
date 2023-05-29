@@ -150,8 +150,7 @@ get_notifs() {
             url: .subject.url | tostring,
             unread_symbol: colored((if .unread then "\u25cf" else "\u00a0" end);"magenta"),
             title: .subject.title
-        } |
-        "\(.hidden_updated_at)\t\(.hidden_repository_full_name)\t\(.iso8601)\t\(.thread_id)\t\(.thread_state)\t\(.comment_url)\t\(.timefmt)\t\(.owner)\/\(.name)\t\(.type)\t\(.url)\t\(.unread_symbol)\t\(.title)"'
+        } | [.hidden_updated_at, .hidden_repository_full_name, .iso8601, .thread_id, .thread_state, .comment_url, .timefmt, "\(.owner)/\(.name)", .type, .url, .unread_symbol, .title ] | @tsv'
 }
 
 print_notifs() {
