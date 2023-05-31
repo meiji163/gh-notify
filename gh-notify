@@ -128,16 +128,14 @@ get_notifs() {
             "cyan": "\u001b[36m",
             "cyan_bold": "\u001b[1;36m",
             "gray": "\u001b[90m",
-            "green": "\u001b[32m",
             "magenta": "\u001b[35m",
             "reset": "\u001b[0m"
         };
         def colored(text; color):
             colors[color] + text + colors.reset;
         .[] | {
-            hidden_COMMENT: "Hidden data points without color codes used in GraphQL query",
-            hidden_updated_at: .updated_at | fromdateiso8601 | strftime("%Y-%m"),
-            hidden_repository_full_name: .repository.full_name,
+            updated_short: .updated_at | fromdateiso8601 | strftime("%Y-%m"),
+            full_name: .repository.full_name,
             iso8601: now | strftime("%Y-%m-%dT%H:%M:%SZ"),
             thread_id: .id,
             thread_state: (if .unread then "UNREAD" else "READ" end),
@@ -150,13 +148,14 @@ get_notifs() {
             url: .subject.url | tostring,
             unread_symbol: colored((if .unread then "\u25cf" else "\u00a0" end);"magenta"),
             title: .subject.title
-        } | [.hidden_updated_at, .hidden_repository_full_name, .iso8601, .thread_id, .thread_state, .comment_url, .timefmt, "\(.owner)/\(.name)", .type, .url, .unread_symbol, .title ] | @tsv'
+        } | ["updated:>=\(.updated_short) repo:\(.full_name)", .iso8601, .thread_id, .thread_state, .comment_url, .timefmt, "\(.owner)/\(.name)", .type, .url, .unread_symbol, .title ] | @tsv'
 }
 
 print_notifs() {
-    local graphql_query_discussion
+    local all_notifs page_num page new_notifs graphql_query_discussion
     all_notifs=""
     page_num=1
+    graphql_query_discussion=$'query ($filter: String!) { search(query: $filter, type: DISCUSSION, first: 1) { nodes { ... on Discussion { number }}}}'
     while true; do
         page=$(get_notifs $page_num) || { echo "Failed to get notifications." >&2 && exit 1; }
         if [ "$page" == "" ]; then
@@ -165,11 +164,10 @@ print_notifs() {
             page_num=$((page_num + 1))
         fi
         new_notifs=$(
-            echo "$page" | while IFS=$'\t' read -r hidden_updated_at hidden_repository_full_name iso8601 thread_id thread_state comment_url timefmt repo type url unread_symbol title number; do
+            echo "$page" | while IFS=$'\t' read -r qualifier iso8601 thread_id thread_state comment_url timefmt repo type url unread_symbol title number; do
                 if grep -q "Discussion" <<<"$type"; then
-                    graphql_query_discussion=$'query ($filter: String!) { search(query: $filter, type: DISCUSSION, first: 1) { nodes { ... on Discussion { number }}}}'
                     # https://docs.github.com/en/search-github/searching-on-github/searching-discussions
-                    number=$(gh api graphql --cache=100h --raw-field filter="$title in:title updated:>=$hidden_updated_at repo:$hidden_repository_full_name" --raw-field query="$graphql_query_discussion" --jq '.data.search.nodes | .[].number') || { echo "Failed GraphQL discussion query." >&2 && exit 1; }
+                    number=$(gh api graphql --cache=100h --raw-field filter="$title in:title $qualifier" --raw-field query="$graphql_query_discussion" --jq '.data.search.nodes | .[].number') || { echo "Failed GraphQL discussion query." >&2 && exit 1; }
                 elif ! grep -q "^null" <<<"$url"; then
                     if grep -q "Commit" <<<"$type"; then
                         number=$(basename "$url" | head -c 7)
