@@ -72,6 +72,7 @@ filter_string=''
 # it is not listed as an official flag in the docs, as it is used for reloading fzf only
 print_fzf_static_reload_flag='false'
 
+# https://github.com/mislav/gh-branch/blob/main/gh-branch#L105
 # this trick only works with the '-s' and '-z' flag
 reload_arguments="$0 $* -sz"
 
@@ -133,8 +134,8 @@ get_notifs() {
         .[] | {
             updated_short: .updated_at | fromdateiso8601 | strftime("%Y-%m"),
             full_name: .repository.full_name,
+            # UTC time ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ
             # https://docs.github.com/en/rest/overview/resources-in-the-rest-api#timezones
-            # COMMENT: UTC time ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ
             iso8601: now | strftime("%Y-%m-%dT%H:%M:%SZ"),
             thread_id: .id,
             thread_state: (if .unread then "UNREAD" else "READ" end),
@@ -143,7 +144,7 @@ get_notifs() {
             owner: colored(.repository.owner.login; "cyan"),
             name: colored(.repository.name; "cyan_bold"),
             type: .subject.type,
-            # COMMENT: Some infos have to be pulled from this URL in later steps, so no string modifications.
+            # Some infos have to be pulled from this URL in later steps, so no string modifications.
             url: .subject.url | tostring,
             unread_symbol: colored((if .unread then "\u25cf" else "\u00a0" end);"magenta"),
             title: .subject.title
