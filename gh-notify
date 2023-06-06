@@ -55,7 +55,7 @@ ${WHITE_BOLD}Key Bindings fzf${NC}
   ${GREEN}esc      ${NC}  quit
 
 ${WHITE_BOLD}Example${NC}
-    # View the last 20 notifications
+    # Display the last 20 notifications
     gh notify -an 20
 EOF
 )
@@ -72,10 +72,6 @@ filter_string=''
 # it is not listed as an official flag in the docs, as it is used for reloading fzf only
 print_fzf_static_reload_flag='false'
 
-# UTC time ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ
-# https://docs.github.com/en/rest/overview/resources-in-the-rest-api#timezones
-timestamp=$(date +"%Y-%m-%dT%H:%M:%SZ")
-# https://github.com/mislav/gh-branch/blob/main/gh-branch#L105
 # this trick only works with the '-s' and '-z' flag
 reload_arguments="$0 $* -sz"
 
@@ -119,6 +115,7 @@ get_notifs() {
     fi
     printf >&2 "." # "marching ants" because sometimes this takes a bit.
     # Use '-F/--field' to pass a variable that is a number, Boolean, or null. Use '-f/--raw-field' for other variables.
+    # Playground to test jq: https://jqplay.org/
     gh api --header "$GH_REST_API_VERSION" --method GET notifications --cache=0s \
         --field per_page="$local_page_size" --field page="$page_num" \
         --field participating="$only_participating_flag" --field all="$include_all_flag" \
@@ -136,6 +133,8 @@ get_notifs() {
         .[] | {
             updated_short: .updated_at | fromdateiso8601 | strftime("%Y-%m"),
             full_name: .repository.full_name,
+            # https://docs.github.com/en/rest/overview/resources-in-the-rest-api#timezones
+            # COMMENT: UTC time ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ
             iso8601: now | strftime("%Y-%m-%dT%H:%M:%SZ"),
             thread_id: .id,
             thread_state: (if .unread then "UNREAD" else "READ" end),
@@ -144,7 +143,7 @@ get_notifs() {
             owner: colored(.repository.owner.login; "cyan"),
             name: colored(.repository.name; "cyan_bold"),
             type: .subject.type,
-            url_COMMENT: "Some infos have to be pulled from this URL in later steps, so no string modifications.",
+            # COMMENT: Some infos have to be pulled from this URL in later steps, so no string modifications.
             url: .subject.url | tostring,
             unread_symbol: colored((if .unread then "\u25cf" else "\u00a0" end);"magenta"),
             title: .subject.title
@@ -274,16 +273,18 @@ select_notif() {
 }
 
 if [[ $mark_read_flag == "true" ]]; then
-    gh api --header "$GH_REST_API_VERSION" --method PUT notifications --raw-field last_read_at="$timestamp" --field read=true --silent || { echo "Failed to mark notifications as read." >&2 && exit 1; }
+    # https://docs.github.com/en/rest/activity/notifications#mark-notifications-as-read
+    gh api --header "$GH_REST_API_VERSION" --method PUT notifications --field read=true --silent || { echo "Failed to mark notifications as read." >&2 && exit 1; }
+    echo "All notifications have been marked as read."
     exit 0
 fi
 
 notifs="$(print_notifs)"
 if [[ -z "$notifs" ]]; then
     # TODO: exit fzf automatically if the list is empty after a reload
-    # workaround, since fzf hides the first elements with '-with-nth'
+    # workaround, since fzf hides the first elements with '--with-nth'
     # if the list is empty on a reload, the message would be hidden, so `\b '(backspace) is added
-    echo -e '\b \b \b \b \bAll caught up!'
+    echo -e ' \b \b \b \bAll caught up!'
     exit 0
 elif [[ $print_static_flag == "false" ]]; then
     if ! type -p fzf >/dev/null; then
