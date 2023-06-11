@@ -40,7 +40,7 @@ gh notify [Flags]
 | <kbd>tab</kbd>                 | toggle preview notification                         |
 | <kbd>shift</kbd><kbd>tab</kbd> | change preview window size                          |
 | <kbd>shift</kbd><kbd>↑↓</kbd>  | scroll the preview up/ down                         |
-| <kbd>ctrl</kbd><kbd>b</kbd>    | open notification in browser                        |
+| <kbd>ctrl</kbd><kbd>b</kbd>    | open notification in the browser                    |
 | <kbd>ctrl</kbd><kbd>d</kbd>    | view diff                                           |
 | <kbd>ctrl</kbd><kbd>p</kbd>    | view diff in patch format                           |
 | <kbd>ctrl</kbd><kbd>r</kbd>    | mark all displayed notifications as read and reload |
@@ -52,12 +52,12 @@ gh notify [Flags]
 ## Customizations
 
 ### Fuzzy Finder (fzf)
-Customize fzf colors and key bindings by exporting `ENVIRONMENT VARIABLES` to your `.zshrc`/`.bashrc`. See the man page (`man fzf`) for `AVAILABLE KEYS/ EVENTS` or [junegunn/fzf#environment-variables](https://github.com/junegunn/fzf#environment-variables) on GitHub for more details.
+Customize fzf key bindings by exporting `ENVIRONMENT VARIABLES` to your `.bashrc`/`.zshrc`. See the man page (`man fzf`) for `AVAILABLE KEYS/ EVENTS` or [junegunn/fzf#environment-variables](https://github.com/junegunn/fzf#environment-variables) on GitHub for more details.
 
 - NOTE: [How to use ALT commands in a terminal on macOS?](https://superuser.com/questions/496090/how-to-use-alt-commands-in-a-terminal-on-os-x)
 
-```zsh
-# ~/.zshrc
+```sh
+# ~/.bashrc or ~/.zshrc
 # The following examples allow you to clear the input query with alt+c,
 # jump to the first/last result with alt+u/d, refresh the preview window with alt+r
 # and scroll the preview in larger steps with ctrl+w/s.
@@ -69,9 +69,9 @@ export FZF_DEFAULT_OPTS="
 ```
 
 ### GitHub command line tool (gh)
-In the configuration file of the `gh` tool you can set your preferred editor. This is handy when you use the interactive mode to write a comment on a notification.
+In the configuration file of the `gh` tool you can set your preferred editor. This is handy when you use the <kbd>ctrl</kbd><kbd>x</kbd> hotkey to write a comment on a notification.
 
-```zsh
+```sh
 # See more details
 gh config
 # For example, set the editor to Visual Studio Code or Vim.
