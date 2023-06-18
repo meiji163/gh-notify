@@ -1,12 +1,12 @@
 <div align="center">
-  
+
 # GitHub CLI Notification Extension
 A [gh](https://github.com/cli/cli) extension to view your GitHub notifications from the command line.
 
 https://github.com/meiji163/gh-notify/assets/92653266/ecb7f246-ea5e-452d-b114-587f05b931e4
 
  </div>
- 
+
 ## Install
 
 ```sh
@@ -73,11 +73,11 @@ export FZF_DEFAULT_OPTS="
 --bind 'alt-c:clear-query'
 --bind 'alt-u:first,alt-d:last'
 --bind 'alt-r:refresh-preview'
---bind 'ctrl-w:preview-half-page-up,ctrl-s:preview-half-page-down'"`
+--bind 'ctrl-w:preview-half-page-up,ctrl-s:preview-half-page-down'"
 ```
 
 ### GitHub command line tool (gh)
-In the configuration file of the `gh` tool you can set your preferred editor. This is handy when you use the <kbd>ctrl</kbd><kbd>x</kbd> hotkey to write a comment on a notification.
+In the config file of the `gh` tool you can set your preferred editor. This is handy when you use the <kbd>ctrl</kbd><kbd>x</kbd> hotkey to write a comment on a notification.
 
 ```sh
 # See more details
