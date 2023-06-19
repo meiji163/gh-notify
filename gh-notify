@@ -27,6 +27,7 @@ export NESTED_START_LVL="$SHLVL"
 export FINAL_MSG='All caught up!'
 # color codes
 export GREEN='\033[0;32m'
+export DARK_GRAY='\033[0;90m'
 export NC='\033[0m'
 export WHITE_BOLD='\033[1m'
 
@@ -50,6 +51,7 @@ ${WHITE_BOLD}Flags${NC}
   ${GREEN}-p    ${NC}  show only participating or mentioned notifications
   ${GREEN}-r    ${NC}  mark all notifications as read
   ${GREEN}-s    ${NC}  print a static display
+  ${GREEN}-u URL${NC}  (un)subscribe a URL, useful for issues/prs of interest
   ${GREEN}-w    ${NC}  display the preview window in interactive mode
 
 ${WHITE_BOLD}Key Bindings fzf${NC}
@@ -84,14 +86,14 @@ export preview_window_visibility='hidden'
 # not necessarily to be exported, since they are not used in any child process
 print_static_flag='false'
 mark_read_flag='false'
+update_subscription_url=''
 
-while getopts 'e:f:n:pawhsr' flag; do
+while getopts 'e:f:n:u:pawhsr' flag; do
     case "${flag}" in
         e) exclusion_string="${OPTARG}" ;;
         f) filter_string="${OPTARG}" ;;
-        n) num_notifications="${OPTARG}" ;;
-        p) only_participating_flag='true' ;;
-        a) include_all_flag='true' ;;
+        u) update_subscription_url="${OPTARG}" ;;
+            a) include_all_flag='true' ;;
         w) preview_window_visibility='nohidden' ;;
         s) print_static_flag='true' ;;
         r) mark_read_flag='true' ;;
@@ -363,6 +365,45 @@ select_notif() {
 version() {
     awk <<<"$@" -F '.' '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'
 }
+
+if [[ -n "$update_subscription_url" ]]; then
+    graphql_query_resource=$'query ($url_input: URI!) {resource(url: $url_input) { ... on Subscribable { id viewerCanSubscribe viewerSubscription }}}'
+    IFS=$'\t' read -r node_id viewerCanSubscribe viewerSubscription < <(gh api graphql --raw-field url_input="$update_subscription_url" --raw-field query="$graphql_query_resource" \
+        --jq '.data.resource | [.id, .viewerCanSubscribe, .viewerSubscription] | @tsv') ||
+        { echo "Failed GraphQL URL resource query." >&2 && exit 1; }
+    if [[ -n "$node_id" ]]; then
+        if [[ $viewerSubscription == "UNSUBSCRIBED" && ! "$viewerCanSubscribe" ]]; then
+            echo "You are not allowed to subscribe to this URL."
+            exit 1
+        fi
+        case "$viewerSubscription" in
+        SUBSCRIBED)
+            updated_state="UNSUBSCRIBED"
+            update_text="Notifications for this URL have been turned off."
+            ;;
+        IGNORED | UNSUBSCRIBED)
+            updated_state="SUBSCRIBED"
+            update_text="Upon new updates you will receive notifications from this URL."
+            ;;
+        *)
+            echo "Error: No changes were made to the subscriptions."
+            echo "Returned value for current status is unknown: $viewerSubscription"
+            exit 1
+            ;;
+        esac
+        graphql_mutation_update_subscription=$'mutation ($updated_state: SubscriptionState!, $node_id: ID!) { updateSubscription(input: {state: $updated_state, subscribableId: $node_id}) { subscribable { viewerSubscription }}}'
+        gh api graphql --silent --raw-field updated_state="$updated_state" \
+            --raw-field node_id="$node_id" --raw-field query="$graphql_mutation_update_subscription" ||
+            { echo "Failed GraphQL mutation to update subscription status." >&2 && exit 1; }
+        echo
+        printf "%b%s%b: %b%s%b\n" "$GREEN" "$updated_state" "$NC" "$WHITE_BOLD" "$update_text" "$NC"
+        printf "%b%s%b\n" "$DARK_GRAY" "$update_subscription_url" "$NC"
+        exit 0
+    else
+        echo "The URL is invalid to subscribe to."
+        exit 1
+    fi
+fi
 
 gh_notify() {
     local notifs user_fzf_version
