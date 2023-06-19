@@ -367,40 +367,52 @@ version() {
 }
 
 if [[ -n "$update_subscription_url" ]]; then
-    graphql_query_resource=$'query ($url_input: URI!) {resource(url: $url_input) { ... on Subscribable { id viewerCanSubscribe viewerSubscription }}}'
-    IFS=$'\t' read -r node_id viewerCanSubscribe viewerSubscription < <(gh api graphql --raw-field url_input="$update_subscription_url" --raw-field query="$graphql_query_resource" \
-        --jq '.data.resource | [.id, .viewerCanSubscribe, .viewerSubscription] | @tsv') ||
-        { echo "Failed GraphQL URL resource query." >&2 && exit 1; }
+    graphql_query_resource=$'query ($url_input: URI!) {resource(url: $url_input) { ... on Subscribable { __typename id viewerCanSubscribe viewerSubscription }}}'
+    IFS=$'\t' read -r object_type node_id viewer_can_subscribe viewer_subscription < <(gh api graphql \
+        --raw-field url_input="$update_subscription_url" --raw-field query="$graphql_query_resource" \
+        --jq '.data.resource | map(.) | @tsv') ||
+        { echo "Failed GraphQL query for resource." >&2 && exit 1; }
     if [[ -n "$node_id" ]]; then
-        if [[ $viewerSubscription == "UNSUBSCRIBED" && ! "$viewerCanSubscribe" ]]; then
-            echo "You are not allowed to subscribe to this URL."
+        if [[ $viewer_subscription != "SUBSCRIBED" && ! "$viewer_can_subscribe" ]]; then
+            echo "You are not allowed to subscribe to this '$object_type'."
             exit 1
         fi
-        case "$viewerSubscription" in
+        case "$viewer_subscription" in
         SUBSCRIBED)
             updated_state="UNSUBSCRIBED"
-            update_text="Notifications for this URL have been turned off."
+            update_text="Notifications disabled for this '$object_type'."
             ;;
         IGNORED | UNSUBSCRIBED)
             updated_state="SUBSCRIBED"
-            update_text="Upon new updates you will receive notifications from this URL."
+            update_text="Notifications enabled for this '$object_type'."
             ;;
         *)
             echo "Error: No changes were made to the subscriptions."
-            echo "Returned value for current status is unknown: $viewerSubscription"
+            echo "Returned value for current status is unknown: $viewer_subscription"
             exit 1
             ;;
         esac
         graphql_mutation_update_subscription=$'mutation ($updated_state: SubscriptionState!, $node_id: ID!) { updateSubscription(input: {state: $updated_state, subscribableId: $node_id}) { subscribable { viewerSubscription }}}'
-        gh api graphql --silent --raw-field updated_state="$updated_state" \
-            --raw-field node_id="$node_id" --raw-field query="$graphql_mutation_update_subscription" ||
-            { echo "Failed GraphQL mutation to update subscription status." >&2 && exit 1; }
-        echo
+        # NOTE: For example, if you "UNSUBSCRIBE" from an Issue but you are still "SUBSCRIBED" to the Repository where the Issue resides, the Issue's subscription status is automatically set to "IGNORED" and can never be set to "UNSUBSCRIBED" as long as you are "SUBSCRIBED" to the Repository. This is a design decision by GitHub.
+        # enumValues for the SubscriptionState
+        # "UNSUBSCRIBED" - "The User is only notified when participating or @mentioned."
+        # "SUBSCRIBED" - "The User is notified of all conversations."
+        # "IGNORED" - "The User is never notified."
+        updated_state=$(gh api graphql --raw-field updated_state="$updated_state" \
+            --raw-field node_id="$node_id" \
+            --raw-field query="$graphql_mutation_update_subscription" \
+            --jq '.data.updateSubscription.subscribable.viewerSubscription') ||
+            { echo "Failed GraphQL mutation to update the subscription status." >&2 && exit 1; }
+        echo "The list with all your subscriptions is only available via the Web UI."
+        printf "%bhttps://github.com/notifications/subscriptions%b\n\n" "$DARK_GRAY" "$NC"
         printf "%b%s%b: %b%s%b\n" "$GREEN" "$updated_state" "$NC" "$WHITE_BOLD" "$update_text" "$NC"
         printf "%b%s%b\n" "$DARK_GRAY" "$update_subscription_url" "$NC"
         exit 0
     else
-        echo "The URL is invalid to subscribe to."
+        possibleTypes=$(gh api graphql --raw-field query='{ __type(name: "Subscribable") { possibleTypes { name }}}' \
+            --jq '.data.__type.possibleTypes | map(.name) | join(", ")' ||
+            { echo "Failed GraphQL query for possibleTypes." >&2 && exit 1; })
+        printf "The URL is invalid to subscribe to.\nValid subscription types: %b%s%b\n" "$WHITE_BOLD" "$possibleTypes" "$NC"
         exit 1
     fi
 fi
