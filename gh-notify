@@ -42,26 +42,27 @@ ${WHITE_BOLD}Usage${NC}
 ${WHITE_BOLD}Flags${NC}
   ${GREEN}<none>${NC}  show all unread notifications
   ${GREEN}-a    ${NC}  show all (read/ unread) notifications
-  ${GREEN}-r    ${NC}  mark all notifications as read
   ${GREEN}-e    ${NC}  exclude notifications matching a string (REGEX support)
   ${GREEN}-f    ${NC}  filter notifications matching a string (REGEX support)
-  ${GREEN}-s    ${NC}  print a static display
+  ${GREEN}-h    ${NC}  show the help page
   ${GREEN}-n NUM${NC}  max number of notifications to show
   ${GREEN}-p    ${NC}  show only participating or mentioned notifications
+  ${GREEN}-r    ${NC}  mark all notifications as read
+  ${GREEN}-s    ${NC}  print a static display
   ${GREEN}-w    ${NC}  display the preview window in interactive mode
-  ${GREEN}-h    ${NC}  show the help page
 
 ${WHITE_BOLD}Key Bindings fzf${NC}
   ${GREEN}?        ${NC}  toggle help
-  ${GREEN}enter    ${NC}  print and mark the notification as read and quit
-  ${GREEN}tab      ${NC}  toggle preview notification
-  ${GREEN}shift+tab${NC}  change preview window size
+  ${GREEN}enter    ${NC}  print the selected notification, mark it as read and quit
+  ${GREEN}tab      ${NC}  toggle notification preview
+  ${GREEN}shift+tab${NC}  resize the preview window
   ${GREEN}shift+↑↓ ${NC}  scroll the preview up/ down
-  ${GREEN}ctrl+b   ${NC}  open notification in the browser
+  ${GREEN}ctrl+a   ${NC}  mark all displayed notifications as read and reload
+  ${GREEN}ctrl+b   ${NC}  browser
   ${GREEN}ctrl+d   ${NC}  view diff
   ${GREEN}ctrl+p   ${NC}  view diff in patch format
-  ${GREEN}ctrl+r   ${NC}  mark all displayed notifications as read and reload
-  ${GREEN}ctrl+t   ${NC}  mark notification as read and reload
+  ${GREEN}ctrl+r   ${NC}  reload
+  ${GREEN}ctrl+t   ${NC}  mark the selected notification as read and reload
   ${GREEN}ctrl+x   ${NC}  write a comment with the editor and quit
   ${GREEN}esc      ${NC}  quit
 
@@ -313,10 +314,11 @@ select_notif() {
             --prompt "GitHub Notifications > " --color "prompt:80,info:40" \
             --bind "change:first" \
             --bind "?:toggle-preview+change-preview:print_help_text" \
+            --bind "ctrl-a:execute-silent(mark_all_read {})+reload:print_notifs || true" \
             --bind "ctrl-b:execute-silent:open_in_browser {}" \
             --bind "ctrl-d:toggle-preview+change-preview:if grep -q PullRequest <<<{8}; then gh pr diff {9} --repo {7}  | diff_pager; else view_notification {}; fi" \
             --bind "ctrl-p:toggle-preview+change-preview:if grep -q PullRequest <<<{8}; then gh pr diff {9} --patch --repo {7} | diff_pager; else view_notification {}; fi" \
-            --bind "ctrl-r:execute-silent(mark_all_read {})+reload:print_notifs || true" \
+            --bind "ctrl-r:reload:print_notifs || true" \
             --bind "ctrl-t:execute-silent(mark_individual_read {})+reload:print_notifs || true" \
             --bind "tab:toggle-preview+change-preview:view_notification {}" \
             --bind "btab:change-preview-window(75%:nohidden|75%:down:nohidden:border-top|nohidden)" \
