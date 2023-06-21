@@ -368,11 +368,9 @@ version() {
 
 if [[ -n "$update_subscription_url" ]]; then
     graphql_query_resource=$'query ($url_input: URI!) {resource(url: $url_input) { ... on Subscribable { __typename id viewerCanSubscribe viewerSubscription }}}'
-    IFS=$'\t' read -r object_type node_id viewer_can_subscribe viewer_subscription < <(gh api graphql \
+    if IFS=$'\t' read -r object_type node_id viewer_can_subscribe viewer_subscription < <(gh api graphql \
         --raw-field url_input="$update_subscription_url" --raw-field query="$graphql_query_resource" \
-        --jq '.data.resource | map(.) | @tsv') ||
-        { echo "Failed GraphQL query for resource." >&2 && exit 1; }
-    if [[ -n "$node_id" ]]; then
+        --jq '.data.resource | map(.) | @tsv' 2>/dev/null); then
         if [[ $viewer_subscription != "SUBSCRIBED" && ! "$viewer_can_subscribe" ]]; then
             echo "You are not allowed to subscribe to this '$object_type'."
             exit 1
@@ -387,14 +385,13 @@ if [[ -n "$update_subscription_url" ]]; then
             update_text="Notifications enabled for this '$object_type'."
             ;;
         *)
-            echo "Error: No changes were made to the subscriptions."
-            echo "Returned value for current status is unknown: $viewer_subscription"
+            echo "ERROR: the queried value for the current status is unknown: $viewer_subscription"
             exit 1
             ;;
         esac
         graphql_mutation_update_subscription=$'mutation ($updated_state: SubscriptionState!, $node_id: ID!) { updateSubscription(input: {state: $updated_state, subscribableId: $node_id}) { subscribable { viewerSubscription }}}'
         # NOTE: For example, if you "UNSUBSCRIBE" from an Issue but you are still "SUBSCRIBED" to the Repository where the Issue resides, the Issue's subscription status is automatically set to "IGNORED" and can never be set to "UNSUBSCRIBED" as long as you are "SUBSCRIBED" to the Repository. This is a design decision by GitHub.
-        # enumValues for the SubscriptionState
+        # enumValues for the 'SubscriptionState'
         # "UNSUBSCRIBED" - "The User is only notified when participating or @mentioned."
         # "SUBSCRIBED" - "The User is notified of all conversations."
         # "IGNORED" - "The User is never notified."
