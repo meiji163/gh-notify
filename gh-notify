@@ -211,9 +211,12 @@ view_notification() {
 }
 
 diff_pager() {
-    # https://dandavison.github.io/delta
     if type -p delta >/dev/null; then
+        # https://dandavison.github.io/delta
         delta --width "${FZF_PREVIEW_COLUMNS:-$COLUMNS}"
+    elif type -p bat >/dev/null; then
+        # https://github.com/sharkdp/bat
+        bat --plain --language diff
     else
         cat
     fi
@@ -250,23 +253,21 @@ open_in_browser() {
 mark_all_read() {
     local iso_time
     read -r iso_time _ <<<"$1"
-    gh api --silent --header "$GH_REST_API_VERSION" \
-        --method PUT notifications \
+    gh api --silent --header "$GH_REST_API_VERSION" --method PUT notifications \
         --raw-field last_read_at="$iso_time" --field read=true
 }
 
 mark_individual_read() {
     local thread_id thread_state
     read -r _ thread_id thread_state _ <<<"$1"
-    if grep -q READ <<<"$thread_state"; then
-        echo "yo $GH_REST_API_VERSION"
-        gh api --silent --header "$GH_REST_API_VERSION" \
-            --method PATCH "notifications/threads/${thread_id}"
+    if grep -q UNREAD <<<"$thread_state"; then
+        gh api --silent --header "$GH_REST_API_VERSION" --method PATCH "notifications/threads/${thread_id}"
     fi
 }
 
 select_notif() {
     local output expected_key selected_line repo type num
+    # make functions available in subshells
     export -f diff_pager open_in_browser view_notification
     export -f mark_all_read mark_individual_read
 
