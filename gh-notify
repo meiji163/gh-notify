@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -eo pipefail
-
-# https://docs.github.com/en/rest/overview/api-versions
-GH_REST_API_VERSION="X-GitHub-Api-Version:2022-11-28"
 # The minimum fzf version that the user needs to run all interactive commands.
 MIN_FZF_VERSION="0.29.0"
 
+# export variables for use in child processes
+# https://docs.github.com/en/rest/overview/api-versions
+export GH_REST_API_VERSION="X-GitHub-Api-Version:2022-11-28"
 # Enable terminal-style output even when the output is redirected.
 export GH_FORCE_TTY=100%
 # Disable the gh pager
@@ -267,7 +267,9 @@ mark_individual_read() {
 
 select_notif() {
     local output expected_key selected_line repo type num
-    # make functions available in subshells
+    # make functions available in child processes
+    # 'SHELL="bash"' is needed, as it would typical fail on macOS that uses,
+    # 'zsh' by default, which doesn't support exporting functions this way
     export -f diff_pager open_in_browser view_notification
     export -f mark_all_read mark_individual_read
 
