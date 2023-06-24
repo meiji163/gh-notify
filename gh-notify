@@ -237,7 +237,8 @@ open_in_browser() {
         python -m webbrowser "https://github.com/${repo}/discussions/${number}"
         ;;
     Issue | PullRequest)
-        if grep -q null <<<"$comment_number" || test "$comment_number" = "$unhashed_num"; then
+        if grep -q null <<<"$comment_number" ||
+            test "$comment_number" = "$unhashed_num"; then
             gh issue view "$number" --web --repo "$repo"
         else
             python -m webbrowser "https://github.com/${repo}/issues/${unhashed_num}#issuecomment-${comment_number}"
@@ -274,6 +275,9 @@ select_notif() {
     export -f mark_all_read mark_individual_read
 
     # See the man page (man fzf) for an explanation of the arguments.
+    # '--print-query' and '--delimiter' are not strictly needed here,
+    # but a user could have them in their ‘FZF_DEFAULT_OPTS’
+    # and so the lines would get screwed up and fail if we don't take that into account.
     output=$(
         SHELL="bash" fzf <<<"$1" \
             --ansi --no-multi --with-nth 5.. \
@@ -296,9 +300,9 @@ select_notif() {
             --expect "enter,esc,ctrl-x"
     )
 
-    # actions that close fzf are defined below, "output" holds the input
-    # 1st line ('--print-query'): it is not used in this script, but a user could have it in their 'FZF_DEFAULT_OPTS' and so the lines would get messed up and fail if we don't account for it
-    # 2nd line ('--expect'):  the actual key
+    # actions that close fzf are defined below
+    # 1st line ('--print-query'): the input query string
+    # 2nd line ('--expect'): the actual key
     # 3rd line: the selected line when the user pressed the key
     expected_key="$(sed '1d;3d' <<<"$output")"
     selected_line="$(sed '1d;2d' <<<"$output")"
@@ -336,7 +340,7 @@ notifs="$(print_notifs)"
 if [[ -z "$notifs" ]]; then
     # TODO: exit fzf automatically if the list is empty after a reload
     # workaround, since fzf hides the first elements with '--with-nth'
-    # if the list is empty on a reload, the message would be hidden, so `\b '(backspace) is added
+    # if the list is empty on a reload, the message would be hidden, so ' \b' (backspace) is added
     echo -e ' \b \b \b \bAll caught up!'
     exit 0
 elif [[ $print_static_flag == "false" ]]; then
