@@ -11,6 +11,11 @@ export GH_FORCE_TTY=100%
 # Disable the gh pager
 export GH_PAGER="cat"
 
+die() {
+    echo ERROR: "$*" >&2
+    exit 1
+}
+
 # NotificationReason:
 # assign, author, comment, invitation, manual, mention, review_requested, security_alert, state_change, subscribed, team_mention, ci_activity
 # NotificationSubjectTypes:
@@ -94,16 +99,10 @@ while getopts 'e:f:n:pawhsrz' flag; do
         exit 0
         ;;
     *)
-        echo -e "$HELP_TEXT"
-        exit 1
+        die "Unknown flag detected: '$*'"
         ;;
     esac
 done
-
-die() {
-    echo ERROR: "$*" >&2
-    exit 1
-}
 
 get_notifs() {
     page_num="${1:-1}"
@@ -164,14 +163,16 @@ print_notifs() {
             echo "$page" | while IFS=$'\t' read -r qualifier iso8601 thread_id thread_state comment_url timefmt repo type url unread_symbol title number; do
                 if grep -q "Discussion" <<<"$type"; then
                     # https://docs.github.com/en/search-github/searching-on-github/searching-discussions
-                    number=$(gh api graphql --cache=100h --raw-field filter="$title in:title $qualifier" --raw-field query="$graphql_query_discussion" --jq '.data.search.nodes | .[].number') ||
+                    number=$(gh api graphql --cache=100h --raw-field filter="$title in:title $qualifier" \
+                        --raw-field query="$graphql_query_discussion" --jq '.data.search.nodes | .[].number') ||
                         die "Failed GraphQL discussion query."
                 elif ! grep -q "^null" <<<"$url"; then
                     if grep -q "Commit" <<<"$type"; then
                         number=$(basename "$url" | head -c 7)
                     elif grep -q "Release" <<<"$type"; then
                         # directly read the output into number and prerelease variables
-                        if IFS=$'\t' read -r number prerelease < <(gh api --cache=100h --header "$GH_REST_API_VERSION" --method GET "$url" --jq '[.tag_name, .prerelease] | @tsv'); then
+                        if IFS=$'\t' read -r number prerelease < <(gh api --cache=100h --header "$GH_REST_API_VERSION" \
+                            --method GET "$url" --jq '[.tag_name, .prerelease] | @tsv'); then
                             "$prerelease" && type="Pre-release"
                         else
                             # it may happen that URLs are retrieved but are already dead and therefore skipped
@@ -185,7 +186,7 @@ print_notifs() {
 
                 printf "\n%s\t%s\t%s\t%s\t%s\t%s\t%s ${GREEN}%s${NC} %s\t%s\n" "$iso8601" "$thread_id" "$thread_state" "$comment_url" "$timefmt" "$repo" "$type" "$number" "$unread_symbol" "$title"
             done
-        ) || exit 1
+        ) || die "Something went wrong"
         all_notifs="$all_notifs$new_notifs"
         # this is going to be a bit funky.
         # if you specify a number larger than 100
@@ -212,7 +213,9 @@ view_notification() {
     Pre-release | Release)
         gh release view "$number" --repo "$repo"
         ;;
-    *) echo "Notification preview for '$type' is not supported." ;;
+    *)
+        echo "Notification preview for '$type' is not supported."
+        ;;
     esac
 }
 
@@ -253,7 +256,9 @@ open_in_browser() {
     Pre-release | Release)
         gh release view "$number" --web --repo "$repo"
         ;;
-    *) gh repo view --web "$repo" ;;
+    *)
+        gh repo view --web "$repo"
+        ;;
     esac
 }
 
@@ -330,6 +335,9 @@ select_notif() {
             echo "Writing comments for '$type' is not supported."
         fi
         mark_individual_read "$selected_line" || die "Failed to mark notifications as read."
+        ;;
+    *)
+        die "Unexpected key '$expected_key'"
         ;;
     esac
 }
