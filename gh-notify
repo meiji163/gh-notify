@@ -201,7 +201,7 @@ print_notifs() {
 
 view_notification() {
     local date time repo type number
-    read -r _ _ _ _ date time repo type number _ <<<"$1"
+    IFS=" " read -r _ _ _ _ date time repo type number _ <<<"$1"
     echo "[$date $time - $type]"
     case "$type" in
     Issue)
@@ -233,7 +233,7 @@ diff_pager() {
 
 open_in_browser() {
     local comment_number date time repo type number unhashed_num
-    read -r _ _ _ comment_number date time repo type number _ <<<"$1"
+    IFS=" " read -r _ _ _ comment_number date time repo type number _ <<<"$1"
     unhashed_num=$(tr -d "#" <<<"$number")
     case "$type" in
     CheckSuite)
@@ -264,15 +264,15 @@ open_in_browser() {
 
 mark_all_read() {
     local iso_time
-    read -r iso_time _ <<<"$1"
+    IFS=" " read -r iso_time _ <<<"$1"
     gh api --silent --header "$GH_REST_API_VERSION" --method PUT notifications \
         --raw-field last_read_at="$iso_time" --field read=true
 }
 
 mark_individual_read() {
     local thread_id thread_state
-    read -r _ thread_id thread_state _ <<<"$1"
-    if grep -q UNREAD <<<"$thread_state"; then
+    IFS=" " read -r _ thread_id thread_state _ <<<"$1"
+    if [ "$thread_state" = UNREAD ]; then
         gh api --silent --header "$GH_REST_API_VERSION" --method PATCH "notifications/threads/${thread_id}"
     fi
 }
@@ -317,7 +317,7 @@ select_notif() {
     # 3rd line: the selected line when the user pressed the key
     expected_key="$(sed '1d;3d' <<<"$output")"
     selected_line="$(sed '1d;2d' <<<"$output")"
-    read -r _ thread_id thread_state _ _ _ repo type num _ <<<"$selected_line"
+    IFS=" " read -r _ thread_id thread_state _ _ _ repo type num _ <<<"$selected_line"
     [[ -z "$type" ]] && exit 0
     case "$expected_key" in
     enter)
