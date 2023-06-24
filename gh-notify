@@ -100,6 +100,11 @@ while getopts 'e:f:n:pawhsrz' flag; do
     esac
 done
 
+die() {
+    echo ERROR: "$*" >&2
+    exit 1
+}
+
 get_notifs() {
     page_num="${1:-1}"
     local_page_size=100
@@ -149,7 +154,7 @@ print_notifs() {
     page_num=1
     graphql_query_discussion=$'query ($filter: String!) { search(query: $filter, type: DISCUSSION, first: 1) { nodes { ... on Discussion { number }}}}'
     while true; do
-        page=$(get_notifs $page_num) || { echo "Failed to get notifications." >&2 && exit 1; }
+        page=$(get_notifs $page_num) || die "Failed to get notifications."
         if [ "$page" == "" ]; then
             break
         else
@@ -159,7 +164,8 @@ print_notifs() {
             echo "$page" | while IFS=$'\t' read -r qualifier iso8601 thread_id thread_state comment_url timefmt repo type url unread_symbol title number; do
                 if grep -q "Discussion" <<<"$type"; then
                     # https://docs.github.com/en/search-github/searching-on-github/searching-discussions
-                    number=$(gh api graphql --cache=100h --raw-field filter="$title in:title $qualifier" --raw-field query="$graphql_query_discussion" --jq '.data.search.nodes | .[].number') || { echo "Failed GraphQL discussion query." >&2 && exit 1; }
+                    number=$(gh api graphql --cache=100h --raw-field filter="$title in:title $qualifier" --raw-field query="$graphql_query_discussion" --jq '.data.search.nodes | .[].number') ||
+                        die "Failed GraphQL discussion query."
                 elif ! grep -q "^null" <<<"$url"; then
                     if grep -q "Commit" <<<"$type"; then
                         number=$(basename "$url" | head -c 7)
@@ -310,8 +316,8 @@ select_notif() {
     [[ -z "$type" ]] && exit 0
     case "$expected_key" in
     enter)
-        view_notification "$selected_line"
-        mark_individual_read "$selected_line"
+        view_notification "$selected_line" || die "Failed to view notification."
+        mark_individual_read "$selected_line" || die "Failed to mark notifications as read."
         ;;
     ctrl-x)
         if grep -qE "Issue|PullRequest" <<<"$type"; then
@@ -319,14 +325,14 @@ select_notif() {
         else
             echo "Writing comments for '$type' is not supported."
         fi
-        mark_individual_read "$selected_line"
+        mark_individual_read "$selected_line" || die "Failed to mark notifications as read."
         ;;
     esac
 }
 
 # https://docs.github.com/en/rest/activity/notifications#mark-notifications-as-read
 if [[ $mark_read_flag == "true" ]]; then
-    mark_all_read "" || { echo "Failed to mark notifications as read." >&2 && exit 1; }
+    mark_all_read "" || die "Failed to mark notifications as read."
     echo "All notifications have been marked as read."
     exit 0
 fi
@@ -345,18 +351,14 @@ if [[ -z "$notifs" ]]; then
     exit 0
 elif [[ $print_static_flag == "false" ]]; then
     if ! type -p fzf >/dev/null; then
-        echo "error: install 'fzf' or use the -s flag" >&2
-        exit 1
+        die "install 'fzf' or use the -s flag"
     fi
     USER_FZF_VERSION="$(fzf --version)"
     if [ "$(version $MIN_FZF_VERSION)" -gt "$(version "$USER_FZF_VERSION")" ]; then
-        echo "Error: 'fzf' was found, but it is too old".
-        echo "Your 'fzf' version is: $USER_FZF_VERSION".
-        echo "Minimum required 'fzf' version is: $MIN_FZF_VERSION"
-        exit 1
+        die "The minimum required 'fzf' version is $MIN_FZF_VERSION. Your 'fzf' version is: $USER_FZF_VERSION."
     fi
     if ! type -p python >/dev/null; then
-        echo "warning: 'Python' was not found"
+        echo "WARNING: 'Python' was not found"
         echo "'Python' is used to open some URLs with 'ctrl-b'" >&2
     fi
     select_notif "$notifs"
