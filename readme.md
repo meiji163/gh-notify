@@ -36,7 +36,7 @@ gh notify [Flags]
 | `-n NUM` | max number of notifications to show                     | `gh notify -an 10`     |
 | `-p`     | show only participating or mentioned notifications      | `gh notify -ap`        |
 | `-r`     | mark all notifications as read                          | `gh notify -r`         |
-| `-s`     | print a static display                                  | `gh notify -as`        |
+| `-s`     | print a static display                                  | `gh notify -an 10 -s`  |
 | `-w`     | display the preview window in interactive mode          | `gh notify -an 10 -w`  |
 
 ### Key Bindings fzf
