@@ -64,7 +64,6 @@ ${WHITE_BOLD}Key Bindings fzf${NC}
 ${WHITE_BOLD}Example${NC}
     # Display the last 20 notifications
     gh notify -an 20
-
 EOF
     )
     echo -e "$help_text"
@@ -273,6 +272,7 @@ view_notification() {
 mark_all_read() {
     local iso_time
     IFS=' ' read -r iso_time _ <<<"$1"
+    # https://docs.github.com/en/rest/activity/notifications#mark-notifications-as-read
     gh api --silent --header "$GH_REST_API_VERSION" --method PUT notifications \
         --raw-field last_read_at="$iso_time" --field read=true
 }
@@ -353,7 +353,6 @@ select_notif() {
     esac
 }
 
-# https://docs.github.com/en/rest/activity/notifications#mark-notifications-as-read
 if [[ $mark_read_flag == "true" ]]; then
     mark_all_read "" || die "Failed to mark notifications as read."
     echo "All notifications have been marked as read."
@@ -362,7 +361,7 @@ fi
 
 # for comparing multi-digit version numbers https://apple.stackexchange.com/a/123408/11374
 version() {
-    echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'
+    awk <<<"$@" -F '.' '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'
 }
 
 notifs="$(print_notifs)"
