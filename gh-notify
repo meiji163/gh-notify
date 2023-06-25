@@ -207,26 +207,6 @@ print_notifs() {
     fi
 }
 
-view_notification() {
-    local date time repo type number
-    IFS=' ' read -r _ _ _ _ date time repo type number _ <<<"$1"
-    echo "[$date $time - $type]"
-    case "$type" in
-    Issue)
-        gh issue view "$number" --repo "$repo" --comments
-        ;;
-    PullRequest)
-        gh pr view "$number" --repo "$repo" --comments
-        ;;
-    Pre-release | Release)
-        gh release view "$number" --repo "$repo"
-        ;;
-    *)
-        echo "Notification preview for '$type' is not supported."
-        ;;
-    esac
-}
-
 diff_pager() {
     if type -p delta >/dev/null; then
         # https://dandavison.github.io/delta
@@ -266,6 +246,26 @@ open_in_browser() {
         ;;
     *)
         gh repo view --web "$repo"
+        ;;
+    esac
+}
+
+view_notification() {
+    local date time repo type number
+    IFS=' ' read -r _ _ _ _ date time repo type number _ <<<"$1"
+    printf "[%s %s - %s]\n" "$date" "$time" "$type"
+    case "$type" in
+    Issue)
+        gh issue view "$number" --repo "$repo" --comments
+        ;;
+    PullRequest)
+        gh pr view "$number" --repo "$repo" --comments
+        ;;
+    Pre-release | Release)
+        gh release view "$number" --repo "$repo"
+        ;;
+    *)
+        printf "Seeing the preview of a %b%s%b is not supported.\n" "$WHITE_BOLD" "$type" "$NC"
         ;;
     esac
 }
@@ -343,7 +343,7 @@ select_notif() {
         if grep -qE "Issue|PullRequest" <<<"$type"; then
             gh issue comment "$num" --repo "$repo"
         else
-            echo "Writing comments for '$type' is not supported."
+            printf "Writing comments is only supported for %bIssues%b and %bPullRequests%b.\n" "$WHITE_BOLD" "$NC" "$WHITE_BOLD" "$NC"
         fi
         mark_individual_read "$selected_line" || die "Failed to mark notifications as read."
         ;;
