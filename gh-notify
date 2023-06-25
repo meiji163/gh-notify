@@ -94,7 +94,7 @@ while getopts 'e:f:n:pawhsr' flag; do
         exit 0
         ;;
     *)
-        die "Unknown flag detected: '$*'"
+        die
         ;;
     esac
 done
@@ -332,7 +332,7 @@ select_notif() {
     case "$expected_key" in
     enter)
         view_notification "$selected_line" || die "Failed to view notification."
-        mark_individual_read "$selected_line" || die "Failed to mark notifications as read."
+        mark_individual_read "$selected_line" || die "Failed to mark the notification as read."
         ;;
     esc)
         # quit with exit code 0; 'fzf' returns 130
@@ -345,7 +345,7 @@ select_notif() {
         else
             printf "Writing comments is only supported for %bIssues%b and %bPullRequests%b.\n" "$WHITE_BOLD" "$NC" "$WHITE_BOLD" "$NC"
         fi
-        mark_individual_read "$selected_line" || die "Failed to mark notifications as read."
+        mark_individual_read "$selected_line" || die "Failed to mark the notification as read."
         ;;
     *)
         die "Unexpected key '$expected_key'"
