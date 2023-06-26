@@ -99,7 +99,7 @@ while getopts 'e:f:n:pawhsr' flag; do
         exit 0
         ;;
     *)
-        die
+        die "see 'gh notify -h' for help"
         ;;
     esac
 done
