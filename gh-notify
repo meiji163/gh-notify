@@ -23,6 +23,8 @@ die() {
 
 # 'SHLVL' variable represents the nesting level of the current shell
 export NESTED_START_LVL="$SHLVL"
+export FINAL_MSG='All caught up!'
+# color codes
 export GREEN='\033[0;32m'
 export NC='\033[0m'
 export WHITE_BOLD='\033[1m'
@@ -201,7 +203,7 @@ print_notifs() {
         # it does work with '--bind "zero:become:"', but this only came with version '0.40.0'
         # workaround, since fzf hides the first elements with '--with-nth 5..'
         # if the list is empty on a reload, the message would be hidden, so ' \b' (backspace) is added
-        echo -e ' \b \b \b \bAll caught up!'
+        echo -e " \b \b \b \b$FINAL_MSG"
     else
         echo "$result"
     fi
@@ -367,7 +369,7 @@ version() {
 
 notifs="$(print_notifs)"
 if [[ -z "$notifs" ]]; then
-    echo "All caught up!"
+    echo "$FINAL_MSG"
     exit 0
 elif [[ $print_static_flag == "false" ]]; then
     if ! type -p fzf >/dev/null; then
