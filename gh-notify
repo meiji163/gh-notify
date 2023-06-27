@@ -237,8 +237,7 @@ open_in_browser() {
         python -m webbrowser "https://github.com/${repo}/discussions/${number}"
         ;;
     Issue | PullRequest)
-        if grep -q null <<<"$comment_number" ||
-            test "$comment_number" = "$unhashed_num"; then
+        if [[ "$comment_number" = "$unhashed_num" || "$comment_number" = null ]]; then
             gh issue view "$number" --web --repo "$repo"
         else
             python -m webbrowser "https://github.com/${repo}/issues/${unhashed_num}#issuecomment-${comment_number}"
@@ -358,7 +357,7 @@ select_notif() {
     esac
 }
 
-if [[ $mark_read_flag == "true" ]]; then
+if [ $mark_read_flag = "true" ]; then
     mark_all_read "" || die "Failed to mark notifications as read."
     echo "All notifications have been marked as read."
     exit 0
@@ -370,10 +369,10 @@ version() {
 }
 
 notifs="$(print_notifs)"
-if [[ -z "$notifs" ]]; then
+if [ -z "$notifs" ]; then
     echo "$FINAL_MSG"
     exit 0
-elif [[ $print_static_flag == "false" ]]; then
+elif [ $print_static_flag = "false" ]; then
     if ! type -p fzf >/dev/null; then
         die "install 'fzf' or use the -s flag"
     fi
@@ -383,7 +382,7 @@ elif [[ $print_static_flag == "false" ]]; then
     fi
     if ! type -p python >/dev/null; then
         echo "WARNING: 'Python' was not found"
-        echo "'Python' is used to open some URLs with 'ctrl-b'" >&2
+        echo "'Python' is used as a cross-platform solution for opening an URL in the browser." >&2
     fi
     select_notif "$notifs"
 else
