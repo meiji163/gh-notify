@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# https://www.gnu.org/software/bash/manual/bash.html#The-Set-Builtin
 set -eo pipefail
 # The minimum fzf version that the user needs to run all interactive commands.
 MIN_FZF_VERSION="0.29.0"
@@ -105,6 +106,7 @@ while getopts 'e:f:n:pawhsr' flag; do
 done
 
 get_notifs() {
+    local page_num local_page_size
     page_num="${1:-1}"
     local_page_size=100
     if [ "$num_notifications" != "0" ]; then
@@ -148,7 +150,7 @@ get_notifs() {
 }
 
 print_notifs() {
-    local all_notifs page_num page new_notifs graphql_query_discussion
+    local all_notifs page_num page new_notifs graphql_query_discussion result
     all_notifs=''
     page_num=1
     graphql_query_discussion=$'query ($filter: String!) { search(query: $filter, type: DISCUSSION, first: 1) { nodes { ... on Discussion { number }}}}'
@@ -357,36 +359,41 @@ select_notif() {
     esac
 }
 
-if [ $mark_read_flag = "true" ]; then
-    mark_all_read "" || die "Failed to mark notifications as read."
-    echo "All notifications have been marked as read."
-    exit 0
-fi
-
 # for comparing multi-digit version numbers https://apple.stackexchange.com/a/123408/11374
 version() {
     awk <<<"$@" -F '.' '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'
 }
 
-notifs="$(print_notifs)"
-if [ -z "$notifs" ]; then
-    echo "$FINAL_MSG"
-    exit 0
-elif [ $print_static_flag = "false" ]; then
-    if ! type -p fzf >/dev/null; then
-        die "install 'fzf' or use the -s flag"
+gh_notify() {
+    local notifs user_fzf_version
+    if [ "$mark_read_flag" = "true" ]; then
+        mark_all_read "" || die "Failed to mark notifications as read."
+        echo "All notifications have been marked as read."
+        exit 0
     fi
-    USER_FZF_VERSION="$(fzf --version)"
-    if [ "$(version $MIN_FZF_VERSION)" -gt "$(version "$USER_FZF_VERSION")" ]; then
-        die "The minimum required 'fzf' version is $MIN_FZF_VERSION. Your 'fzf' version is: $USER_FZF_VERSION."
+
+    notifs="$(print_notifs)"
+    if [ -z "$notifs" ]; then
+        echo "$FINAL_MSG"
+        exit 0
+    elif [ $print_static_flag = "false" ]; then
+        if ! type -p fzf >/dev/null; then
+            die "install 'fzf' or use the -s flag"
+        fi
+        user_fzf_version="$(fzf --version)"
+        if [ "$(version $MIN_FZF_VERSION)" -gt "$(version "$user_fzf_version")" ]; then
+            die "The minimum required 'fzf' version is $MIN_FZF_VERSION. Your 'fzf' version is: $user_fzf_version."
+        fi
+        if ! type -p python >/dev/null; then
+            echo "WARNING: 'Python' was not found"
+            echo "'Python' is used as a cross-platform solution for opening an URL in the browser." >&2
+        fi
+        select_notif "$notifs"
+    else
+        # remove unimportant elements from the static display
+        # '[[:blank:]]' matches horizontal whitespace characters (spaces/ tabs)
+        echo "$notifs" | sed -E 's/^([^[:blank:]]+[[:blank:]]+){4}//'
     fi
-    if ! type -p python >/dev/null; then
-        echo "WARNING: 'Python' was not found"
-        echo "'Python' is used as a cross-platform solution for opening an URL in the browser." >&2
-    fi
-    select_notif "$notifs"
-else
-    # remove unimportant elements from the static display
-    # '[[:blank:]]' matches horizontal whitespace characters (spaces/ tabs)
-    echo "$notifs" | sed -E 's/^([^[:blank:]]+[[:blank:]]+){4}//'
-fi
+}
+
+gh_notify
