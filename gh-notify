@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# https://www.gnu.org/software/bash/manual/bash.html#The-Set-Builtin
 set -eo pipefail
 # The minimum fzf version that the user needs to run all interactive commands.
 MIN_FZF_VERSION="0.29.0"
@@ -42,26 +43,27 @@ ${WHITE_BOLD}Usage${NC}
 ${WHITE_BOLD}Flags${NC}
   ${GREEN}<none>${NC}  show all unread notifications
   ${GREEN}-a    ${NC}  show all (read/ unread) notifications
-  ${GREEN}-r    ${NC}  mark all notifications as read
   ${GREEN}-e    ${NC}  exclude notifications matching a string (REGEX support)
   ${GREEN}-f    ${NC}  filter notifications matching a string (REGEX support)
-  ${GREEN}-s    ${NC}  print a static display
+  ${GREEN}-h    ${NC}  show the help page
   ${GREEN}-n NUM${NC}  max number of notifications to show
   ${GREEN}-p    ${NC}  show only participating or mentioned notifications
+  ${GREEN}-r    ${NC}  mark all notifications as read
+  ${GREEN}-s    ${NC}  print a static display
   ${GREEN}-w    ${NC}  display the preview window in interactive mode
-  ${GREEN}-h    ${NC}  show the help page
 
 ${WHITE_BOLD}Key Bindings fzf${NC}
   ${GREEN}?        ${NC}  toggle help
-  ${GREEN}enter    ${NC}  print and mark the notification as read and quit
-  ${GREEN}tab      ${NC}  toggle preview notification
-  ${GREEN}shift+tab${NC}  change preview window size
+  ${GREEN}enter    ${NC}  print the selected notification, mark it as read and quit
+  ${GREEN}tab      ${NC}  toggle notification preview
+  ${GREEN}shift+tab${NC}  resize the preview window
   ${GREEN}shift+↑↓ ${NC}  scroll the preview up/ down
-  ${GREEN}ctrl+b   ${NC}  open notification in the browser
+  ${GREEN}ctrl+a   ${NC}  mark all displayed notifications as read and reload
+  ${GREEN}ctrl+b   ${NC}  browser
   ${GREEN}ctrl+d   ${NC}  view diff
   ${GREEN}ctrl+p   ${NC}  view diff in patch format
-  ${GREEN}ctrl+r   ${NC}  mark all displayed notifications as read and reload
-  ${GREEN}ctrl+t   ${NC}  mark notification as read and reload
+  ${GREEN}ctrl+r   ${NC}  reload
+  ${GREEN}ctrl+t   ${NC}  mark the selected notification as read and reload
   ${GREEN}ctrl+x   ${NC}  write a comment with the editor and quit
   ${GREEN}esc      ${NC}  quit
 
@@ -98,12 +100,13 @@ while getopts 'e:f:n:pawhsr' flag; do
         exit 0
         ;;
     *)
-        die
+        die "see 'gh notify -h' for help"
         ;;
     esac
 done
 
 get_notifs() {
+    local page_num local_page_size
     page_num="${1:-1}"
     local_page_size=100
     if [ "$num_notifications" != "0" ]; then
@@ -147,7 +150,7 @@ get_notifs() {
 }
 
 print_notifs() {
-    local all_notifs page_num page new_notifs graphql_query_discussion
+    local all_notifs page_num page new_notifs graphql_query_discussion result
     all_notifs=''
     page_num=1
     graphql_query_discussion=$'query ($filter: String!) { search(query: $filter, type: DISCUSSION, first: 1) { nodes { ... on Discussion { number }}}}'
@@ -236,8 +239,7 @@ open_in_browser() {
         python -m webbrowser "https://github.com/${repo}/discussions/${number}"
         ;;
     Issue | PullRequest)
-        if grep -q null <<<"$comment_number" ||
-            test "$comment_number" = "$unhashed_num"; then
+        if [[ "$comment_number" = "$unhashed_num" || "$comment_number" = null ]]; then
             gh issue view "$number" --web --repo "$repo"
         else
             python -m webbrowser "https://github.com/${repo}/issues/${unhashed_num}#issuecomment-${comment_number}"
@@ -313,14 +315,15 @@ select_notif() {
             --prompt "GitHub Notifications > " --color "prompt:80,info:40" \
             --bind "change:first" \
             --bind "?:toggle-preview+change-preview:print_help_text" \
+            --bind "ctrl-a:execute-silent(mark_all_read {})+reload:print_notifs || true" \
             --bind "ctrl-b:execute-silent:open_in_browser {}" \
             --bind "ctrl-d:toggle-preview+change-preview:if grep -q PullRequest <<<{8}; then gh pr diff {9} --repo {7}  | diff_pager; else view_notification {}; fi" \
             --bind "ctrl-p:toggle-preview+change-preview:if grep -q PullRequest <<<{8}; then gh pr diff {9} --patch --repo {7} | diff_pager; else view_notification {}; fi" \
-            --bind "ctrl-r:execute-silent(mark_all_read {})+reload:print_notifs || true" \
+            --bind "ctrl-r:reload:print_notifs || true" \
             --bind "ctrl-t:execute-silent(mark_individual_read {})+reload:print_notifs || true" \
             --bind "tab:toggle-preview+change-preview:view_notification {}" \
             --bind "btab:change-preview-window(75%:nohidden|75%:down:nohidden:border-top|nohidden)" \
-            --preview-window wrap:"$preview_window_visibility":50%:right:border-left \
+            --preview-window "wrap:${preview_window_visibility}:50%:right:border-left" \
             --preview "view_notification {}" \
             --expect "enter,esc,ctrl-x"
     )
@@ -356,36 +359,40 @@ select_notif() {
     esac
 }
 
-if [[ $mark_read_flag == "true" ]]; then
-    mark_all_read "" || die "Failed to mark notifications as read."
-    echo "All notifications have been marked as read."
-    exit 0
-fi
-
 # for comparing multi-digit version numbers https://apple.stackexchange.com/a/123408/11374
 version() {
     awk <<<"$@" -F '.' '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'
 }
 
-notifs="$(print_notifs)"
-if [[ -z "$notifs" ]]; then
-    echo "$FINAL_MSG"
-    exit 0
-elif [[ $print_static_flag == "false" ]]; then
-    if ! type -p fzf >/dev/null; then
-        die "install 'fzf' or use the -s flag"
+gh_notify() {
+    local notifs user_fzf_version
+    if [ "$mark_read_flag" = "true" ]; then
+        mark_all_read "" || die "Failed to mark notifications as read."
+        echo "All notifications have been marked as read."
+        exit 0
     fi
-    USER_FZF_VERSION="$(fzf --version)"
-    if [ "$(version $MIN_FZF_VERSION)" -gt "$(version "$USER_FZF_VERSION")" ]; then
-        die "The minimum required 'fzf' version is $MIN_FZF_VERSION. Your 'fzf' version is: $USER_FZF_VERSION."
+
+    notifs="$(print_notifs)"
+    if [ -z "$notifs" ]; then
+        echo "$FINAL_MSG"
+        exit 0
+    elif [ $print_static_flag = "false" ]; then
+        if ! type -p fzf >/dev/null; then
+            die "install 'fzf' or use the -s flag"
+        fi
+        user_fzf_version="$(fzf --version)"
+        if [ "$(version $MIN_FZF_VERSION)" -gt "$(version "$user_fzf_version")" ]; then
+            die "The minimum required 'fzf' version is $MIN_FZF_VERSION. Your 'fzf' version is: $user_fzf_version."
+        fi
+        if ! type -p python >/dev/null; then
+            die "install 'Python' or use the -s flag"
+        fi
+        select_notif "$notifs"
+    else
+        # remove unimportant elements from the static display
+        # '[[:blank:]]' matches horizontal whitespace characters (spaces/ tabs)
+        echo "$notifs" | sed -E 's/^([^[:blank:]]+[[:blank:]]+){4}//'
     fi
-    if ! type -p python >/dev/null; then
-        echo "WARNING: 'Python' was not found"
-        echo "'Python' is used to open some URLs with 'ctrl-b'" >&2
-    fi
-    select_notif "$notifs"
-else
-    # remove unimportant elements from the static display
-    # '[[:blank:]]' matches horizontal whitespace characters (spaces/ tabs)
-    echo "$notifs" | sed -E 's/^([^[:blank:]]+[[:blank:]]+){4}//'
-fi
+}
+
+gh_notify

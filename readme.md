@@ -18,7 +18,9 @@ gh ext upgrade meiji163/gh-notify
 gh ext remove meiji163/gh-notify
 ```
 
-Install the [Fuzzy Finder (fzf)](https://github.com/junegunn/fzf#installation) for interactive mode.
+- to use `gh notify` interactively also install these tools
+  - [Fuzzy Finder (fzf)](https://github.com/junegunn/fzf#installation)
+  - [Python](https://www.python.org/) in cases where `gh` can't open the `URL` in your browser, this oneliner is used as a cross-platform solution: `python -m webbrowser <URL>`
 
 ## Usage
 
@@ -30,31 +32,32 @@ gh notify [Flags]
 | -------- | ------------------------------------------------------- | ---------------------- |
 | <none>   | show all unread notifications                           | `gh notify`            |
 | `-a`     | show all (read/ unread) notifications                   | `gh notify -a`         |
-| `-r`     | mark all notifications as read                          | `gh notify -r`         |
 | `-e`     | exclude notifications matching a string (REGEX support) | `gh notify -e "MyJob"` |
 | `-f`     | filter notifications matching a string (REGEX support)  | `gh notify -f "Repo"`  |
-| `-s`     | print a static display                                  | `gh notify -as`        |
+| `-h`     | show the help page                                      | `gh notify -h`         |
 | `-n NUM` | max number of notifications to show                     | `gh notify -an 10`     |
 | `-p`     | show only participating or mentioned notifications      | `gh notify -ap`        |
+| `-r`     | mark all notifications as read                          | `gh notify -r`         |
+| `-s`     | print a static display                                  | `gh notify -an 10 -s`  |
 | `-w`     | display the preview window in interactive mode          | `gh notify -an 10 -w`  |
-| `-h`     | show the help page                                      | `gh notify -h`         |
 
 ### Key Bindings fzf
 
-| Keys                           | Description                                         |
-| ------------------------------ | --------------------------------------------------- |
-| <kbd>?</kbd>                   | toggle help                                         |
-| <kbd>enter</kbd>               | print and mark the notification as read and quit    |
-| <kbd>tab</kbd>                 | toggle preview notification                         |
-| <kbd>shift</kbd><kbd>tab</kbd> | change preview window size                          |
-| <kbd>shift</kbd><kbd>↑↓</kbd>  | scroll the preview up/ down                         |
-| <kbd>ctrl</kbd><kbd>b</kbd>    | open notification in the browser                    |
-| <kbd>ctrl</kbd><kbd>d</kbd>    | view diff                                           |
-| <kbd>ctrl</kbd><kbd>p</kbd>    | view diff in patch format                           |
-| <kbd>ctrl</kbd><kbd>r</kbd>    | mark all displayed notifications as read and reload |
-| <kbd>ctrl</kbd><kbd>t</kbd>    | mark notification as read and reload                |
-| <kbd>ctrl</kbd><kbd>x</kbd>    | write a comment with the editor and quit            |
-| <kbd>esc</kbd>                 | quit                                                |
+| Keys                           | Description                                               |
+| ------------------------------ | --------------------------------------------------------- |
+| <kbd>?</kbd>                   | toggle help                                               |
+| <kbd>enter</kbd>               | print the selected notification, mark it as read and quit |
+| <kbd>tab</kbd>                 | toggle notification preview                               |
+| <kbd>shift</kbd><kbd>tab</kbd> | resize the preview window                                 |
+| <kbd>shift</kbd><kbd>↑↓</kbd>  | scroll the preview up/ down                               |
+| <kbd>ctrl</kbd><kbd>a</kbd>    | mark all displayed notifications as read and reload       |
+| <kbd>ctrl</kbd><kbd>b</kbd>    | browser                                                   |
+| <kbd>ctrl</kbd><kbd>d</kbd>    | view diff                                                 |
+| <kbd>ctrl</kbd><kbd>p</kbd>    | view diff in patch format                                 |
+| <kbd>ctrl</kbd><kbd>r</kbd>    | reload                                                    |
+| <kbd>ctrl</kbd><kbd>t</kbd>    | mark the selected notification as read and reload         |
+| <kbd>ctrl</kbd><kbd>x</kbd>    | write a comment with the editor and quit                  |
+| <kbd>esc</kbd>                 | quit                                                      |
 
 ---
 ## Customizations
