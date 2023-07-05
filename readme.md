@@ -18,7 +18,9 @@ gh ext upgrade meiji163/gh-notify
 gh ext remove meiji163/gh-notify
 ```
 
-Install the [Fuzzy Finder (fzf)](https://github.com/junegunn/fzf#installation) for interactive mode.
+- to use `gh notify` interactively also install these tools
+  - [Fuzzy Finder (fzf)](https://github.com/junegunn/fzf#installation)
+  - [Python](https://www.python.org/) in cases where `gh` can't open the `URL` in your browser, this oneliner is used as a cross-platform solution: `python -m webbrowser <URL>`
 
 ## Usage
 

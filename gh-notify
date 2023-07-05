@@ -385,8 +385,7 @@ gh_notify() {
             die "The minimum required 'fzf' version is $MIN_FZF_VERSION. Your 'fzf' version is: $user_fzf_version."
         fi
         if ! type -p python >/dev/null; then
-            echo "WARNING: 'Python' was not found"
-            echo "'Python' is used as a cross-platform solution for opening an URL in the browser." >&2
+            die "install 'Python' or use the -s flag"
         fi
         select_notif "$notifs"
     else
