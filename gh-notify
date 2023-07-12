@@ -92,8 +92,10 @@ while getopts 'e:f:n:u:pawhsr' flag; do
     case "${flag}" in
         e) exclusion_string="${OPTARG}" ;;
         f) filter_string="${OPTARG}" ;;
+        n) num_notifications="${OPTARG}" ;;
+        p) only_participating_flag='true' ;;
         u) update_subscription_url="${OPTARG}" ;;
-            a) include_all_flag='true' ;;
+        a) include_all_flag='true' ;;
         w) preview_window_visibility='nohidden' ;;
         s) print_static_flag='true' ;;
         r) mark_read_flag='true' ;;
@@ -366,28 +368,28 @@ version() {
     awk <<<"$@" -F '.' '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'
 }
 
-if [[ -n "$update_subscription_url" ]]; then
+if [[ -n $update_subscription_url ]]; then
     graphql_query_resource=$'query ($url_input: URI!) {resource(url: $url_input) { ... on Subscribable { __typename id viewerCanSubscribe viewerSubscription }}}'
     if IFS=$'\t' read -r object_type node_id viewer_can_subscribe viewer_subscription < <(gh api graphql \
         --raw-field url_input="$update_subscription_url" --raw-field query="$graphql_query_resource" \
         --jq '.data.resource | map(.) | @tsv' 2>/dev/null); then
-        if [[ $viewer_subscription != "SUBSCRIBED" && ! "$viewer_can_subscribe" ]]; then
+        if [[ $viewer_subscription != "SUBSCRIBED" && ! $viewer_can_subscribe ]]; then
             echo "You are not allowed to subscribe to this '$object_type'."
             exit 1
         fi
         case "$viewer_subscription" in
-        SUBSCRIBED)
-            updated_state="UNSUBSCRIBED"
-            update_text="Notifications disabled for this '$object_type'."
-            ;;
-        IGNORED | UNSUBSCRIBED)
-            updated_state="SUBSCRIBED"
-            update_text="Notifications enabled for this '$object_type'."
-            ;;
-        *)
-            echo "ERROR: the queried value for the current status is unknown: $viewer_subscription"
-            exit 1
-            ;;
+            SUBSCRIBED)
+                updated_state="UNSUBSCRIBED"
+                update_text="Notifications disabled for this '$object_type'."
+                ;;
+            IGNORED | UNSUBSCRIBED)
+                updated_state="SUBSCRIBED"
+                update_text="Notifications enabled for this '$object_type'."
+                ;;
+            *)
+                echo "ERROR: the queried value for the current status is unknown: $viewer_subscription"
+                exit 1
+                ;;
         esac
         graphql_mutation_update_subscription=$'mutation ($updated_state: SubscriptionState!, $node_id: ID!) { updateSubscription(input: {state: $updated_state, subscribableId: $node_id}) { subscribable { viewerSubscription }}}'
         # NOTE: For example, if you "UNSUBSCRIBE" from an Issue but you are still "SUBSCRIBED" to the Repository where the Issue resides, the Issue's subscription status is automatically set to "IGNORED" and can never be set to "UNSUBSCRIBED" as long as you are "SUBSCRIBED" to the Repository. This is a design decision by GitHub.
