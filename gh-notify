@@ -87,21 +87,21 @@ mark_read_flag='false'
 
 while getopts 'e:f:n:pawhsr' flag; do
     case "${flag}" in
-    e) exclusion_string="${OPTARG}" ;;
-    f) filter_string="${OPTARG}" ;;
-    n) num_notifications="${OPTARG}" ;;
-    p) only_participating_flag='true' ;;
-    a) include_all_flag='true' ;;
-    w) preview_window_visibility='nohidden' ;;
-    s) print_static_flag='true' ;;
-    r) mark_read_flag='true' ;;
-    h)
-        print_help_text
-        exit 0
-        ;;
-    *)
-        die "see 'gh notify -h' for help"
-        ;;
+        e) exclusion_string="${OPTARG}" ;;
+        f) filter_string="${OPTARG}" ;;
+        n) num_notifications="${OPTARG}" ;;
+        p) only_participating_flag='true' ;;
+        a) include_all_flag='true' ;;
+        w) preview_window_visibility='nohidden' ;;
+        s) print_static_flag='true' ;;
+        r) mark_read_flag='true' ;;
+        h)
+            print_help_text
+            exit 0
+            ;;
+        *)
+            die "see 'gh notify -h' for help"
+            ;;
     esac
 done
 
@@ -194,14 +194,14 @@ print_notifs() {
         # this is going to be a bit funky.
         # if you specify a number larger than 100
         # GitHub will ignore it and give you only 100
-        [[ "$num_notifications" != "0" ]] && break
+        [[ $num_notifications != "0" ]] && break
     done
     # clear the dots we printed
     echo >&2 -e "\r\033[K"
 
     result=$(echo "$all_notifs" | grep -v "$exclusion_string" | grep "$filter_string" | column -ts $'\t')
     # if the value is greater than the initial start value, we assume to be in the 'fzf’ reload function
-    if [[ -z "$result" && "$SHLVL" -gt "$NESTED_START_LVL" ]]; then
+    if [[ -z $result && $SHLVL -gt $NESTED_START_LVL ]]; then
         # TODO: exit fzf automatically if the list is empty after a reload
         # it does work with '--bind "zero:become:"', but this only came with version '0.40.0'
         # workaround, since fzf hides the first elements with '--with-nth 5..'
@@ -229,28 +229,28 @@ open_in_browser() {
     IFS=' ' read -r _ _ _ comment_number date time repo type number _ <<<"$1"
     unhashed_num=$(tr -d "#" <<<"$number")
     case "$type" in
-    CheckSuite)
-        python -m webbrowser "https://github.com/${repo}/actions"
-        ;;
-    Commit)
-        gh browse "$number" --repo "$repo"
-        ;;
-    Discussion)
-        python -m webbrowser "https://github.com/${repo}/discussions/${number}"
-        ;;
-    Issue | PullRequest)
-        if [[ "$comment_number" = "$unhashed_num" || "$comment_number" = null ]]; then
-            gh issue view "$number" --web --repo "$repo"
-        else
-            python -m webbrowser "https://github.com/${repo}/issues/${unhashed_num}#issuecomment-${comment_number}"
-        fi
-        ;;
-    Pre-release | Release)
-        gh release view "$number" --web --repo "$repo"
-        ;;
-    *)
-        gh repo view --web "$repo"
-        ;;
+        CheckSuite)
+            python -m webbrowser "https://github.com/${repo}/actions"
+            ;;
+        Commit)
+            gh browse "$number" --repo "$repo"
+            ;;
+        Discussion)
+            python -m webbrowser "https://github.com/${repo}/discussions/${number}"
+            ;;
+        Issue | PullRequest)
+            if [[ $comment_number == "$unhashed_num" || $comment_number == null ]]; then
+                gh issue view "$number" --web --repo "$repo"
+            else
+                python -m webbrowser "https://github.com/${repo}/issues/${unhashed_num}#issuecomment-${comment_number}"
+            fi
+            ;;
+        Pre-release | Release)
+            gh release view "$number" --web --repo "$repo"
+            ;;
+        *)
+            gh repo view --web "$repo"
+            ;;
     esac
 }
 
@@ -259,18 +259,18 @@ view_notification() {
     IFS=' ' read -r _ _ _ _ date time repo type number _ <<<"$1"
     printf "[%s %s - %s]\n" "$date" "$time" "$type"
     case "$type" in
-    Issue)
-        gh issue view "$number" --repo "$repo" --comments
-        ;;
-    PullRequest)
-        gh pr view "$number" --repo "$repo" --comments
-        ;;
-    Pre-release | Release)
-        gh release view "$number" --repo "$repo"
-        ;;
-    *)
-        printf "Seeing the preview of a %b%s%b is not supported.\n" "$WHITE_BOLD" "$type" "$NC"
-        ;;
+        Issue)
+            gh issue view "$number" --repo "$repo" --comments
+            ;;
+        PullRequest)
+            gh pr view "$number" --repo "$repo" --comments
+            ;;
+        Pre-release | Release)
+            gh release view "$number" --repo "$repo"
+            ;;
+        *)
+            printf "Seeing the preview of a %b%s%b is not supported.\n" "$WHITE_BOLD" "$type" "$NC"
+            ;;
     esac
 }
 
@@ -334,28 +334,28 @@ select_notif() {
     expected_key="$(sed '1d;3d' <<<"$output")"
     selected_line="$(sed '1d;2d' <<<"$output")"
     IFS=' ' read -r _ thread_id thread_state _ _ _ repo type num _ <<<"$selected_line"
-    [[ -z "$type" ]] && exit 0
+    [[ -z $type ]] && exit 0
     case "$expected_key" in
-    enter)
-        view_notification "$selected_line" || die "Failed to view notification."
-        mark_individual_read "$selected_line" || die "Failed to mark the notification as read."
-        ;;
-    esc)
-        # quit with exit code 0; 'fzf' returns 130
-        # TODO: when updating to '0.38.0' use '--bind "esc:become:"'
-        exit 0
-        ;;
-    ctrl-x)
-        if grep -qE "Issue|PullRequest" <<<"$type"; then
-            gh issue comment "$num" --repo "$repo"
-        else
-            printf "Writing comments is only supported for %bIssues%b and %bPullRequests%b.\n" "$WHITE_BOLD" "$NC" "$WHITE_BOLD" "$NC"
-        fi
-        mark_individual_read "$selected_line" || die "Failed to mark the notification as read."
-        ;;
-    *)
-        die "Unexpected key '$expected_key'"
-        ;;
+        enter)
+            view_notification "$selected_line" || die "Failed to view notification."
+            mark_individual_read "$selected_line" || die "Failed to mark the notification as read."
+            ;;
+        esc)
+            # quit with exit code 0; 'fzf' returns 130
+            # TODO: when updating to '0.38.0' use '--bind "esc:become:"'
+            exit 0
+            ;;
+        ctrl-x)
+            if grep -qE "Issue|PullRequest" <<<"$type"; then
+                gh issue comment "$num" --repo "$repo"
+            else
+                printf "Writing comments is only supported for %bIssues%b and %bPullRequests%b.\n" "$WHITE_BOLD" "$NC" "$WHITE_BOLD" "$NC"
+            fi
+            mark_individual_read "$selected_line" || die "Failed to mark the notification as read."
+            ;;
+        *)
+            die "Unexpected key '$expected_key'"
+            ;;
     esac
 }
 
