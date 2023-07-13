@@ -28,18 +28,19 @@ gh ext remove meiji163/gh-notify
 gh notify [Flags]
 ```
 
-| Flags    | Description                                             | Example                |
-| -------- | ------------------------------------------------------- | ---------------------- |
-| <none>   | show all unread notifications                           | `gh notify`            |
-| `-a`     | show all (read/ unread) notifications                   | `gh notify -a`         |
-| `-e`     | exclude notifications matching a string (REGEX support) | `gh notify -e "MyJob"` |
-| `-f`     | filter notifications matching a string (REGEX support)  | `gh notify -f "Repo"`  |
-| `-h`     | show the help page                                      | `gh notify -h`         |
-| `-n NUM` | max number of notifications to show                     | `gh notify -an 10`     |
-| `-p`     | show only participating or mentioned notifications      | `gh notify -ap`        |
-| `-r`     | mark all notifications as read                          | `gh notify -r`         |
-| `-s`     | print a static display                                  | `gh notify -an 10 -s`  |
-| `-w`     | display the preview window in interactive mode          | `gh notify -an 10 -w`  |
+| Flags    | Description                                             | Example                                              |
+| -------- | ------------------------------------------------------- | ---------------------------------------------------- |
+| <none>   | show all unread notifications                           | `gh notify`                                          |
+| `-a`     | show all (read/ unread) notifications                   | `gh notify -a`                                       |
+| `-e`     | exclude notifications matching a string (REGEX support) | `gh notify -e "MyJob"`                               |
+| `-f`     | filter notifications matching a string (REGEX support)  | `gh notify -f "Repo"`                                |
+| `-h`     | show the help page                                      | `gh notify -h`                                       |
+| `-n NUM` | max number of notifications to show                     | `gh notify -an 10`                                   |
+| `-p`     | show only participating or mentioned notifications      | `gh notify -ap`                                      |
+| `-r`     | mark all notifications as read                          | `gh notify -r`                                       |
+| `-s`     | print a static display                                  | `gh notify -an 10 -s`                                |
+| `-u URL` | (un)subscribe a URL, useful for issues/prs of interest  | `gh notify -u https://github.com/cli/cli/issues/659` |
+| `-w`     | display the preview window in interactive mode          | `gh notify -an 10 -w`                                |
 
 ### Key Bindings fzf
 
