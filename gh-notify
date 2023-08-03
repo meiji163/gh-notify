@@ -142,7 +142,7 @@ get_notifs() {
             thread_id: .id,
             thread_state: (if .unread then "UNREAD" else "READ" end),
             comment_url: .subject.latest_comment_url | tostring | split("/") | last,
-            timefmt: colored(.updated_at | fromdateiso8601 | strftime("%d/%b %H:%M"); "gray"),
+            timefmt: colored(.updated_at | fromdateiso8601 | strflocaltime("%d/%b %H:%M"); "gray"),
             owner: colored(.repository.owner.login; "cyan"),
             name: colored(.repository.name; "cyan_bold"),
             type: .subject.type,
