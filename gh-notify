@@ -327,7 +327,7 @@ select_notif() {
             --bind "ctrl-t:execute-silent(mark_individual_read {})+reload:print_notifs || true" \
             --bind "tab:toggle-preview+change-preview:view_notification {}" \
             --bind "btab:change-preview-window(75%:nohidden|75%:down:nohidden:border-top|nohidden)" \
-            --preview-window "wrap:${preview_window_visibility}:50%:right:border-left" \
+            --preview-window "wrap:${preview_window_visibility}:50%:right:border-left:<65(wrap:${preview_window_visibility}:75%:down:border-top)" \
             --preview "view_notification {}" \
             --expect "enter,esc,ctrl-x"
     )
