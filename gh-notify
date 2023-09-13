@@ -297,8 +297,8 @@ mark_individual_read() {
 select_notif() {
     local output expected_key selected_line repo type num
     # make functions available in child processes
-    # 'SHELL="bash"' is needed, as it would typical fail on macOS that uses,
-    # 'zsh' by default, which doesn't support exporting functions this way
+    # 'SHELL="$(which bash)"' is needed to use exported functions when the default shell
+    # is not bash
     export -f print_help_text print_notifs get_notifs
     export -f diff_pager open_in_browser view_notification
     export -f mark_all_read mark_individual_read
@@ -310,7 +310,7 @@ select_notif() {
     # but a user could have them in their ‘FZF_DEFAULT_OPTS’
     # and so the lines would get screwed up and fail if we don't take that into account.
     output=$(
-        SHELL="bash" fzf <<<"$1" \
+        SHELL="$(which bash)" fzf <<<"$1" \
             --ansi --no-multi --with-nth 5.. \
             --delimiter '\s+' --print-query \
             --reverse --info=inline --pointer="▶" \
