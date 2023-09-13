@@ -312,8 +312,8 @@ select_notif() {
         "--hilite-search"     # Highlight results when searching with slash key (/)
         "--jump-target=.3"    # percent on the screen for the target line
         "--quiet"             # be more quiet
-        "--quit-on-intr"      # quit less immediately with ^C
         "--RAW-CONTROL-CHARS" # colors will not work without it
+        "--status-column"     # mark matched lines on the left side
         "--tilde"             # don't show '~' symbols on lines after EOF
     )
     if [[ $(version "$(less --version | sed -E 's/^[^0-9]*//;q')") -ge 550 ]]; then
