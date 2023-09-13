@@ -8,9 +8,7 @@ MIN_FZF_VERSION="0.29.0"
 # https://docs.github.com/en/rest/overview/api-versions
 export GH_REST_API_VERSION="X-GitHub-Api-Version:2022-11-28"
 # Enable terminal-style output even when the output is redirected.
-export GH_FORCE_TTY=100%
-# Disable the gh pager
-export GH_PAGER="cat"
+export GH_FORCE_TTY=1
 
 # NotificationReason:
 # assign, author, comment, invitation, manual, mention, review_requested, security_alert, state_change, subscribed, team_mention, ci_activity
@@ -56,7 +54,7 @@ ${WHITE_BOLD}Flags${NC}
 
 ${WHITE_BOLD}Key Bindings fzf${NC}
   ${GREEN}?        ${NC}  toggle help
-  ${GREEN}enter    ${NC}  print the selected notification, mark it as read and quit
+  ${GREEN}enter    ${NC}  view the selected notification in the 'less' pager
   ${GREEN}tab      ${NC}  toggle notification preview
   ${GREEN}shift+tab${NC}  resize the preview window
   ${GREEN}shift+↑↓ ${NC}  scroll the preview up/ down
@@ -259,15 +257,22 @@ open_in_browser() {
 }
 
 view_notification() {
-    local date time repo type number
+    local all_comments date time repo type number
+    # if 'all_comments' exists and isn't null, use the '--comments' flag
+    case "$1" in
+        --all_comments)
+            shift
+            all_comments="1"
+            ;;
+    esac
     IFS=' ' read -r _ _ _ _ date time repo type number _ <<<"$1"
     printf "[%s %s - %s]\n" "$date" "$time" "$type"
     case "$type" in
         Issue)
-            gh issue view "$number" --repo "$repo" --comments
+            gh issue view "$number" --repo "$repo" ${all_comments:+"--comments"}
             ;;
         PullRequest)
-            gh pr view "$number" --repo "$repo" --comments
+            gh pr view "$number" --repo "$repo" ${all_comments:+"--comments"}
             ;;
         Pre-release | Release)
             gh release view "$number" --repo "$repo"
@@ -295,6 +300,28 @@ mark_individual_read() {
 }
 
 select_notif() {
+    declare -a less_args
+    # If the user has assigned the LESS environment variable with the
+    # '-F/--quit-if-one-screen' option. The screen will not stay open for small
+    # text files that fit on the entire screen. The easiest solution is to
+    # disable the 'LESS' variable and define common sense options.
+
+    [[ -n $LESS ]] && unset LESS
+    less_args=(
+        "--LONG-PROMPT"       # Long prompts ("Line X of Y")
+        "--hilite-search"     # Highlight results when searching with slash key (/)
+        "--jump-target=.3"    # percent on the screen for the target line
+        "--quiet"             # be more quiet
+        "--quit-on-intr"      # quit less immediately with ^C
+        "--RAW-CONTROL-CHARS" # colors will not work without it
+        "--tilde"             # don't show '~' symbols on lines after EOF
+    )
+    if [[ $(version "$(less --version | sed -E 's/^[^0-9]*//' | sed q)") -ge 550 ]]; then
+        # https://www.greenwoodsoftware.com/less/old.html
+        # mouse input came with version 550
+        less_args+=("--mouse")
+    fi
+
     local output expected_key selected_line repo type num
     # make functions available in child processes
     # 'SHELL="$(which bash)"' is needed to use exported functions when the default shell
@@ -325,11 +352,12 @@ select_notif() {
             --bind "ctrl-p:toggle-preview+change-preview:if grep -q PullRequest <<<{8}; then gh pr diff {9} --patch --repo {7} | diff_pager; else view_notification {}; fi" \
             --bind "ctrl-r:reload:print_notifs || true" \
             --bind "ctrl-t:execute-silent(mark_individual_read {})+reload:print_notifs || true" \
+            --bind "enter:execute:view_notification --all_comments {} | less ${less_args[*]} >/dev/tty" \
             --bind "tab:toggle-preview+change-preview:view_notification {}" \
             --bind "btab:change-preview-window(75%:nohidden|75%:down:nohidden:border-top|nohidden)" \
             --preview-window "wrap:${preview_window_visibility}:50%:right:border-left:<65(wrap:${preview_window_visibility}:75%:down:border-top)" \
             --preview "view_notification {}" \
-            --expect "enter,esc,ctrl-x"
+            --expect "esc,ctrl-x"
     )
     # actions that close fzf are defined below
     # 1st line ('--print-query'): the input query string
@@ -340,10 +368,6 @@ select_notif() {
     IFS=' ' read -r _ thread_id thread_state _ _ _ repo type num _ <<<"$selected_line"
     [[ -z $type ]] && exit 0
     case "$expected_key" in
-        enter)
-            view_notification "$selected_line" || die "Failed to view notification."
-            mark_individual_read "$selected_line" || die "Failed to mark the notification as read."
-            ;;
         esc)
             # quit with exit code 0; 'fzf' returns 130
             # TODO: when updating to '0.38.0' use '--bind "esc:become:"'

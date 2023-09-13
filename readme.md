@@ -44,21 +44,21 @@ gh notify [Flags]
 
 ### Key Bindings fzf
 
-| Keys                           | Description                                               |
-| ------------------------------ | --------------------------------------------------------- |
-| <kbd>?</kbd>                   | toggle help                                               |
-| <kbd>enter</kbd>               | print the selected notification, mark it as read and quit |
-| <kbd>tab</kbd>                 | toggle notification preview                               |
-| <kbd>shift</kbd><kbd>tab</kbd> | resize the preview window                                 |
-| <kbd>shift</kbd><kbd>↑↓</kbd>  | scroll the preview up/ down                               |
-| <kbd>ctrl</kbd><kbd>a</kbd>    | mark all displayed notifications as read and reload       |
-| <kbd>ctrl</kbd><kbd>b</kbd>    | browser                                                   |
-| <kbd>ctrl</kbd><kbd>d</kbd>    | view diff                                                 |
-| <kbd>ctrl</kbd><kbd>p</kbd>    | view diff in patch format                                 |
-| <kbd>ctrl</kbd><kbd>r</kbd>    | reload                                                    |
-| <kbd>ctrl</kbd><kbd>t</kbd>    | mark the selected notification as read and reload         |
-| <kbd>ctrl</kbd><kbd>x</kbd>    | write a comment with the editor and quit                  |
-| <kbd>esc</kbd>                 | quit                                                      |
+| Keys                           | Description                                         |
+| ------------------------------ | --------------------------------------------------- |
+| <kbd>?</kbd>                   | toggle help                                         |
+| <kbd>enter</kbd>               | view the selected notification in the 'less' pager  |
+| <kbd>tab</kbd>                 | toggle notification preview                         |
+| <kbd>shift</kbd><kbd>tab</kbd> | resize the preview window                           |
+| <kbd>shift</kbd><kbd>↑↓</kbd>  | scroll the preview up/ down                         |
+| <kbd>ctrl</kbd><kbd>a</kbd>    | mark all displayed notifications as read and reload |
+| <kbd>ctrl</kbd><kbd>b</kbd>    | browser                                             |
+| <kbd>ctrl</kbd><kbd>d</kbd>    | view diff                                           |
+| <kbd>ctrl</kbd><kbd>p</kbd>    | view diff in patch format                           |
+| <kbd>ctrl</kbd><kbd>r</kbd>    | reload                                              |
+| <kbd>ctrl</kbd><kbd>t</kbd>    | mark the selected notification as read and reload   |
+| <kbd>ctrl</kbd><kbd>x</kbd>    | write a comment with the editor and quit            |
+| <kbd>esc</kbd>                 | quit                                                |
 
 ---
 ## Customizations
