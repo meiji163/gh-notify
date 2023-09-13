@@ -310,7 +310,7 @@ select_notif() {
     # but a user could have them in their ‘FZF_DEFAULT_OPTS’
     # and so the lines would get screwed up and fail if we don't take that into account.
     output=$(
-        SHELL="bash" fzf <<<"$1" \
+        SHELL="$(which bash)" fzf <<<"$1" \
             --ansi --no-multi --with-nth 5.. \
             --delimiter '\s+' --print-query \
             --reverse --info=inline --pointer="▶" \
