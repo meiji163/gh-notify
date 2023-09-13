@@ -305,9 +305,9 @@ select_notif() {
     # '-F/--quit-if-one-screen' option. The screen will not stay open for small
     # text files that fit on the entire screen. The easiest solution is to
     # disable the 'LESS' variable and define common sense options.
-
     [[ -n $LESS ]] && unset LESS
     less_args=(
+        "--clear-screen"      # painted from the top line down
         "--LONG-PROMPT"       # Long prompts ("Line X of Y")
         "--hilite-search"     # Highlight results when searching with slash key (/)
         "--jump-target=.3"    # percent on the screen for the target line
@@ -316,7 +316,7 @@ select_notif() {
         "--RAW-CONTROL-CHARS" # colors will not work without it
         "--tilde"             # don't show '~' symbols on lines after EOF
     )
-    if [[ $(version "$(less --version | sed -E 's/^[^0-9]*//' | sed q)") -ge 550 ]]; then
+    if [[ $(version "$(less --version | sed -E 's/^[^0-9]*//;q')") -ge 550 ]]; then
         # https://www.greenwoodsoftware.com/less/old.html
         # mouse input came with version 550
         less_args+=("--mouse")
