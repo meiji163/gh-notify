@@ -20,7 +20,11 @@ gh ext remove meiji163/gh-notify
 
 - to use `gh notify` interactively also install these tools
   - [Fuzzy Finder (fzf)](https://github.com/junegunn/fzf#installation)
-  - [Python](https://www.python.org/) in cases where `gh` can't open the `URL` in your browser, this oneliner is used as a cross-platform solution: `python -m webbrowser <URL>`
+  - [Less pager](http://greenwoodsoftware.com/less/download.html), is usually installed by
+    default on Linux and macOS
+  - [Python](https://www.python.org/) in cases where `gh` can't open the `URL` in your
+    browser, this oneliner is used as a cross-platform solution: `python -m webbrowser
+    <URL>`
 
 ## Usage
 
