@@ -297,8 +297,8 @@ mark_individual_read() {
 select_notif() {
     local output expected_key selected_line repo type num
     # make functions available in child processes
-    # 'SHELL="bash"' is needed, as it would typical fail on macOS that uses,
-    # 'zsh' by default, which doesn't support exporting functions this way
+    # 'SHELL="$(which bash)"' is needed to use exported functions when the default shell
+    # is not bash
     export -f print_help_text print_notifs get_notifs
     export -f diff_pager open_in_browser view_notification
     export -f mark_all_read mark_individual_read
