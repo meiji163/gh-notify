@@ -397,7 +397,7 @@ check_version() {
 
     for i in "${!ver_parts[@]}"; do
         if (("${ver_parts[i]}" < "${threshold_parts[i]}")); then
-            $on_error "Your 'fzf' version '$user_version' is insufficient. The minimum required version is '$threshold'."
+            $on_error "Your '$tool' version '$user_version' is insufficient. The minimum required version is '$threshold'."
         fi
     done
 }
