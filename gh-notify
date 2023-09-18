@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
+set -o errexit -o nounset -o pipefail
 # https://www.gnu.org/software/bash/manual/bash.html#The-Set-Builtin
-set -eo pipefail
+
 # The minimum fzf version that the user needs to run all interactive commands.
 MIN_FZF_VERSION="0.29.0"
 
@@ -199,7 +200,7 @@ print_notifs() {
         [[ $num_notifications != "0" ]] && break
     done
     # clear the dots we printed
-    echo >&2 -e "\r\033[K"
+    echo >&2 -ne "\r\033[K"
 
     result=$(echo "$all_notifs" | grep -v "$exclusion_string" | grep "$filter_string" | column -ts $'\t')
     # if the value is greater than the initial start value, we assume to be in the 'fzf’ reload function
