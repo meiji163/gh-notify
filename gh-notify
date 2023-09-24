@@ -316,7 +316,7 @@ select_notif() {
     # '-F/--quit-if-one-screen' option. The screen will not stay open for small
     # text files that fit on the entire screen. The easiest solution is to
     # disable the 'LESS' variable and define common sense options.
-    [[ -n ${LESS:-} ]] && unset LESS
+    [[ -n ${LESS-} ]] && unset LESS
     less_args=(
         "--clear-screen"      # painted from the top line down
         "--LONG-PROMPT"       # Long prompts ("Line X of Y")
