@@ -227,13 +227,14 @@ print_notifs() {
     fi
 }
 
-diff_pager() {
+highlight_output() {
     if type -p delta >/dev/null; then
         # https://dandavison.github.io/delta
-        delta --width "${FZF_PREVIEW_COLUMNS:-$COLUMNS}"
+        delta --width "${FZF_PREVIEW_COLUMNS:-${COLUMNS:-100}}" --paging=never
     elif type -p bat >/dev/null; then
         # https://github.com/sharkdp/bat
-        bat --plain --language diff
+        bat --color=always --plain --language diff --no-pager \
+            --terminal-width="${FZF_PREVIEW_COLUMNS:-${COLUMNS:-100}}"
     else
         cat
     fi
@@ -278,6 +279,10 @@ view_notification() {
     IFS=' ' read -r _ _ _ _ date time repo type number _ <<<"$1"
     printf "[%s %s - %s]\n" "$date" "$time" "$type"
     case "$type" in
+        Commit)
+            gh api --header "$GH_REST_API_VERSION" --cache=24h \
+                --method GET "repos/$repo/commits/$number" --jq '.files[].patch' | highlight_output
+            ;;
         Issue)
             # use the '--comments' flag only if 'all_comments' exists and is not null
             gh issue view "$number" --repo "$repo" ${all_comments:+"--comments"}
@@ -326,7 +331,7 @@ select_notif() {
     # 'SHELL="$(which bash)"' is needed to use exported functions when the default shell
     # is not bash
     export -f print_help_text print_notifs get_notifs
-    export -f diff_pager open_in_browser view_notification
+    export -f highlight_output open_in_browser view_notification
     export -f mark_all_read mark_individual_read
     # The 'die' function is not exported because 'fzf' warns you about the error in
     # a failed 'print_notifs' call, but does not display the message.
@@ -342,8 +347,8 @@ select_notif() {
             --bind "change:first" \
             --bind "ctrl-a:execute-silent(mark_all_read {})+reload:print_notifs || true" \
             --bind "ctrl-b:execute-silent:open_in_browser {}" \
-            --bind "ctrl-d:toggle-preview+change-preview:if grep -q PullRequest <<<{8}; then gh pr diff {9} --repo {7}  | diff_pager; else view_notification {}; fi" \
-            --bind "ctrl-p:toggle-preview+change-preview:if grep -q PullRequest <<<{8}; then gh pr diff {9} --patch --repo {7} | diff_pager; else view_notification {}; fi" \
+            --bind "ctrl-d:toggle-preview+change-preview:if grep -q PullRequest <<<{8}; then gh pr diff {9} --repo {7}  | highlight_output; else view_notification {}; fi" \
+            --bind "ctrl-p:toggle-preview+change-preview:if grep -q PullRequest <<<{8}; then gh pr diff {9} --patch --repo {7} | highlight_output; else view_notification {}; fi" \
             --bind "ctrl-r:reload:print_notifs || true" \
             --bind "ctrl-t:execute-silent(mark_individual_read {})+reload:print_notifs || true" \
             --bind "enter:execute:view_notification --all_comments {} | less ${less_args[*]} >/dev/tty" \
