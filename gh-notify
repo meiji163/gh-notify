@@ -312,26 +312,14 @@ mark_individual_read() {
 
 select_notif() {
     declare -a less_args
-    # If the user has assigned the LESS environment variable with the
-    # '-F/--quit-if-one-screen' option. The screen will not stay open for small
-    # text files that fit on the entire screen. The easiest solution is to
-    # disable the 'LESS' variable and define common sense options.
-    [[ -n ${LESS-} ]] && unset LESS
+    # The long option (--+…) for resetting the option to its default setting is broken in
+    # less version 643, so only use the short version.
+    # Ref: https://github.com/gwsw/less/issues/452
     less_args=(
-        "--clear-screen"      # painted from the top line down
-        "--LONG-PROMPT"       # Long prompts ("Line X of Y")
-        "--hilite-search"     # Highlight results when searching with slash key (/)
-        "--jump-target=.3"    # percent on the screen for the target line
-        "--quiet"             # be more quiet
-        "--RAW-CONTROL-CHARS" # colors will not work without it
-        "--status-column"     # mark matched lines on the left side
-        "--tilde"             # don't show '~' symbols on lines after EOF
+        "--clear-screen" # to be painted from the top line down
+        "-+F"            # disable exiting if the entire file can be displayed on the first screen
+        "-+X"            # disable screen clearing prevention
     )
-    if [[ -z $(check_version less 550 echo) ]]; then
-        # https://www.greenwoodsoftware.com/less/old.html
-        # mouse input came with version 550
-        less_args+=("--mouse")
-    fi
 
     local output expected_key selected_line repo type num
     # make functions available in child processes
