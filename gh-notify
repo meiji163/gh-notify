@@ -323,8 +323,8 @@ select_notif() {
     less_args=(
         "--clear-screen"      # to be painted from the top line down
         "--RAW-CONTROL-CHARS" # Raw color codes in output (don't remove color codes)
-        "-+F"                 # disable exiting if the entire file can be displayed on the first screen
-        "-+X"                 # disable screen clearing prevention
+        "-+F"                 # reset exiting if the entire file can be displayed on the first screen
+        "-+X"                 # reset screen clearing prevention
     )
 
     local output expected_key selected_line repo type num
