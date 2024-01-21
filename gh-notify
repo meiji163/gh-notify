@@ -321,9 +321,10 @@ select_notif() {
     # less version 643, so only use the short version.
     # Ref: https://github.com/gwsw/less/issues/452
     less_args=(
-        "--clear-screen" # to be painted from the top line down
-        "-+F"            # disable exiting if the entire file can be displayed on the first screen
-        "-+X"            # disable screen clearing prevention
+        "--clear-screen"      # to be painted from the top line down
+        "--RAW-CONTROL-CHARS" # Raw color codes in output (don't remove color codes)
+        "-+F"                 # disable exiting if the entire file can be displayed on the first screen
+        "-+X"                 # disable screen clearing prevention
     )
 
     local output expected_key selected_line repo type num
