@@ -38,6 +38,7 @@ export num_notifications='0'
 export only_participating_flag='false'
 export include_all_flag='false'
 export preview_window_visibility='hidden'
+export python_executable=''
 # not necessarily to be exported, since they are not used in any child process
 print_static_flag='false'
 mark_read_flag='false'
@@ -246,19 +247,19 @@ open_in_browser() {
     unhashed_num=$(tr -d "#" <<<"$number")
     case "$type" in
         CheckSuite)
-            python -m webbrowser "https://github.com/${repo}/actions"
+            "$python_executable" -m webbrowser "https://github.com/${repo}/actions"
             ;;
         Commit)
             gh browse "$number" --repo "$repo"
             ;;
         Discussion)
-            python -m webbrowser "https://github.com/${repo}/discussions/${number}"
+            "$python_executable" -m webbrowser "https://github.com/${repo}/discussions/${number}"
             ;;
         Issue | PullRequest)
             if [[ $comment_number == "$unhashed_num" || $comment_number == null ]]; then
                 gh issue view "$number" --web --repo "$repo"
             else
-                python -m webbrowser "https://github.com/${repo}/issues/${unhashed_num}#issuecomment-${comment_number}"
+                "$python_executable" -m webbrowser "https://github.com/${repo}/issues/${unhashed_num}#issuecomment-${comment_number}"
             fi
             ;;
         Pre-release | Release)
@@ -420,6 +421,27 @@ check_version() {
 gh_notify() {
     local graphql_query_resource updated_state update_text
     local graphql_mutation_update_subscription possibleTypes notifs
+
+    # Bail early if we aren't static and pre-reqs aren't found
+    if [ $print_static_flag = "false" ]; then
+        for python in python python3; do
+            if type -p $python >/dev/null; then
+                python_executable=$python
+                break
+            fi
+        done
+        if [ -z "$python_executable" ]; then
+          die "install 'python' or use the -s flag"
+        fi
+
+        for tool in less fzf; do
+            if ! type -p $tool >/dev/null; then
+                die "install '$tool' or use the -s flag"
+            fi
+        done
+        check_version fzf "$MIN_FZF_VERSION"
+    fi
+
     if [[ -n $update_subscription_url ]]; then
         graphql_query_resource=$'query ($url_input: URI!) {resource(url: $url_input) { ... on Subscribable { __typename id viewerCanSubscribe viewerSubscription }}}'
         if IFS=$'\t' read -r object_type node_id viewer_can_subscribe viewer_subscription < <(gh api graphql \
@@ -480,12 +502,6 @@ gh_notify() {
         echo "$FINAL_MSG"
         exit 0
     elif [ $print_static_flag = "false" ]; then
-        for tool in less python fzf; do
-            if ! type -p $tool >/dev/null; then
-                die "install '$tool' or use the -s flag"
-            fi
-        done
-        check_version fzf "$MIN_FZF_VERSION"
         select_notif "$notifs"
     else
         # remove unimportant elements from the static display
