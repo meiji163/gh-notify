@@ -431,7 +431,7 @@ gh_notify() {
             fi
         done
         if [ -z "$python_executable" ]; then
-          die "install 'python' or use the -s flag"
+            die "install 'python' or use the -s flag"
         fi
 
         for tool in less fzf; do
