@@ -141,6 +141,7 @@ get_notifs() {
             "cyan_bold": "\u001b[1;36m",
             "gray": "\u001b[90m",
             "magenta": "\u001b[35m",
+            "blue": "\u001b[34m",
             "reset": "\u001b[0m"
         };
         def colored(text; color):
@@ -158,11 +159,12 @@ get_notifs() {
             owner: colored(.repository.owner.login; "cyan"),
             name: colored(.repository.name; "cyan_bold"),
             type: .subject.type,
+            reason: colored(.reason; "blue"),
             # Some infos have to be pulled from this URL in later steps, so no string modifications.
             url: .subject.url | tostring,
             unread_symbol: colored((if .unread then "\u25cf" else "\u00a0" end);"magenta"),
             title: .subject.title
-        } | ["updated:>=\(.updated_short) repo:\(.full_name)", .iso8601, .thread_id, .thread_state, .comment_url, .timefmt, "\(.owner)/\(.name)", .type, .url, .unread_symbol, .title ] | @tsv'
+        } | ["updated:>=\(.updated_short) repo:\(.full_name)", .iso8601, .thread_id, .thread_state, .comment_url, .timefmt, "\(.owner)/\(.name)", .type, .reason, .url, .unread_symbol, .title ] | @tsv'
 }
 
 print_notifs() {
@@ -178,7 +180,7 @@ print_notifs() {
             page_num=$((page_num + 1))
         fi
         new_notifs=$(
-            echo "$page" | while IFS=$'\t' read -r qualifier iso8601 thread_id thread_state comment_url timefmt repo type url unread_symbol title number; do
+            echo "$page" | while IFS=$'\t' read -r qualifier iso8601 thread_id thread_state comment_url timefmt repo type reason url unread_symbol title number; do
                 if grep -q "Discussion" <<<"$type"; then
                     # https://docs.github.com/en/search-github/searching-on-github/searching-discussions
                     number=$(gh api graphql --cache=100h --raw-field filter="$title in:title $qualifier" \
@@ -201,9 +203,9 @@ print_notifs() {
                         number=${url/*\//#}
                     fi
                 fi
-                printf "\n%s\t%s\t%s\t%s\t%s\t%s\t%s %b%s%b %s\t%s\n" \
+                printf "\n%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%b%s%b %s\t%s\n" \
                     "$iso8601" "$thread_id" "$thread_state" "$comment_url" "$timefmt" \
-                    "$repo" "$type" "$GREEN" "$number" "$NC" "$unread_symbol" "$title"
+                    "$repo" "$type" "$reason" "$GREEN" "$number" "$NC" "$unread_symbol" "$title"
             done
         ) || die "Something went wrong"
         all_notifs="$all_notifs$new_notifs"
@@ -243,7 +245,7 @@ highlight_output() {
 
 open_in_browser() {
     local comment_number date time repo type number unhashed_num
-    IFS=' ' read -r _ _ _ comment_number date time repo type number _ <<<"$1"
+    IFS=' ' read -r _ _ _ comment_number date time repo type _ number _ <<<"$1"
     unhashed_num=$(tr -d "#" <<<"$number")
     case "$type" in
         CheckSuite)
@@ -277,7 +279,7 @@ view_notification() {
         shift
         all_comments="1"
     fi
-    IFS=' ' read -r _ _ _ _ date time repo type number _ <<<"$1"
+    IFS=' ' read -r _ _ _ _ date time repo type _ number _ <<<"$1"
     printf "[%s %s - %s]\n" "$date" "$time" "$type"
     case "$type" in
         Commit)
@@ -349,8 +351,8 @@ select_notif() {
             --bind "change:first" \
             --bind "ctrl-a:execute-silent(mark_all_read {})+reload:print_notifs || true" \
             --bind "ctrl-b:execute-silent:open_in_browser {}" \
-            --bind "ctrl-d:toggle-preview+change-preview:if grep -q PullRequest <<<{8}; then gh pr diff {9} --repo {7}  | highlight_output; else view_notification {}; fi" \
-            --bind "ctrl-p:toggle-preview+change-preview:if grep -q PullRequest <<<{8}; then gh pr diff {9} --patch --repo {7} | highlight_output; else view_notification {}; fi" \
+            --bind "ctrl-d:toggle-preview+change-preview:if grep -q PullRequest <<<{9}; then gh pr diff {10} --repo {8}  | highlight_output; else view_notification {}; fi" \
+            --bind "ctrl-p:toggle-preview+change-preview:if grep -q PullRequest <<<{9}; then gh pr diff {10} --patch --repo {8} | highlight_output; else view_notification {}; fi" \
             --bind "ctrl-r:reload:print_notifs || true" \
             --bind "ctrl-t:execute-silent(mark_individual_read {})+reload:print_notifs || true" \
             --bind "enter:execute:view_notification --all_comments {} | less ${less_args[*]} >/dev/tty" \
@@ -379,7 +381,7 @@ select_notif() {
     # 3rd line: the selected line when the user pressed the key
     expected_key="$(sed '1d;3d' <<<"$output")"
     selected_line="$(sed '1d;2d' <<<"$output")"
-    IFS=' ' read -r _ thread_id thread_state _ _ _ repo type num _ <<<"$selected_line"
+    IFS=' ' read -r _ thread_id thread_state _ _ _ repo type _ num _ <<<"$selected_line"
     [[ -z $type ]] && exit 0
     case "$expected_key" in
         esc)
