@@ -64,7 +64,20 @@ gh notify [Flags]
 | <kbd>ctrl</kbd><kbd>x</kbd>    | write a comment with the editor and quit            |
 | <kbd>esc</kbd>                 | quit                                                |
 
+### Table Format
+
+| Field            | Description                                        |
+| ---------------- | -------------------------------------------------- |
+| 1. Unread Symbol | Indicates if the notification is read or unread.   |
+| 2. Time          | The time when the notification was updated.        |
+| 3. Repo          | The repository related to the notification.        |
+| 4. Type          | The type of the notification, e.g. Issue, Release. |
+| 5. Number        | The number associated with the notification.       |
+| 6. Reason        | The reason why the user received the notification. |
+| 7. Description   | A brief description of the notification.           |
+
 ---
+
 ## Customizations
 
 ### Fuzzy Finder (fzf)

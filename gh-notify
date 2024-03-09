@@ -88,8 +88,17 @@ ${WHITE_BOLD}Key Bindings fzf${NC}
   ${GREEN}ctrl+x   ${NC}  write a comment with the editor and quit
   ${GREEN}esc      ${NC}  quit
 
+${WHITE_BOLD}Table Format${NC}
+  ${GREEN}1. Unread Symbol${NC}  Indicates if the notification is read or unread.
+  ${GREEN}2. Time         ${NC}  The time when the notification was updated.
+  ${GREEN}3. Repo         ${NC}  The repository related to the notification.
+  ${GREEN}4. Type         ${NC}  The type of the notification, e.g. Issue, Release, …
+  ${GREEN}5. Number       ${NC}  The number associated with the notification.
+  ${GREEN}6. Reason       ${NC}  The reason why the user received the notification.
+  ${GREEN}7. Description  ${NC}  A brief description of the notification.
+
 ${WHITE_BOLD}Example${NC}
-    # Display the last 20 notifications
+    ${DARK_GRAY}# Display the last 20 notifications${NC}
     gh notify -an 20
 EOF
     )
@@ -129,42 +138,67 @@ get_notifs() {
         local_page_size=$num_notifications
     fi
     printf >&2 "." # "marching ants" because sometimes this takes a bit.
-    # Use '-F/--field' to pass a variable that is a number, Boolean, or null. Use '-f/--raw-field' for other variables.
+    # Use '-F/--field' to pass a variable that is a number, Boolean, or null. Use '-f/--raw-field'
+    # for other variables.
     # Playground to test jq: https://jqplay.org/
     gh api --header "$GH_REST_API_VERSION" --method GET notifications --cache=0s \
         --field per_page="$local_page_size" --field page="$page_num" \
         --field participating="$only_participating_flag" --field all="$include_all_flag" \
         --jq \
-        'def colors:
+        $'def colors:
         {
             "cyan": "\u001b[36m",
             "cyan_bold": "\u001b[1;36m",
             "gray": "\u001b[90m",
             "magenta": "\u001b[35m",
-            "blue": "\u001b[34m",
+            "white_bold": "\u001b[1;37m",
             "reset": "\u001b[0m"
         };
         def colored(text; color):
             colors[color] + text + colors.reset;
         .[] | {
             updated_short: .updated_at | fromdateiso8601 | strftime("%Y-%m"),
-            full_name: .repository.full_name,
             # UTC time ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ
             # https://docs.github.com/en/rest/overview/resources-in-the-rest-api#timezones
             iso8601: now | strftime("%Y-%m-%dT%H:%M:%SZ"),
             thread_id: .id,
             thread_state: (if .unread then "UNREAD" else "READ" end),
             comment_url: .subject.latest_comment_url | tostring | split("/") | last,
-            timefmt: colored(.updated_at | fromdateiso8601 | strflocaltime("%d/%b %H:%M"); "gray"),
-            owner: colored(.repository.owner.login; "cyan"),
-            name: colored(.repository.name; "cyan_bold"),
-            type: .subject.type,
-            reason: colored(.reason; "blue"),
+            repo_full_name: .repository.full_name,
+            unread_symbol: colored((if .unread then "\u25cf" else "\u00a0" end);"magenta"),
+            # make sure each outcome has an equal number of fields separated by spaces
+            timefmt: colored(((.updated_at | fromdateiso8601) as $time_sec |
+                # difference is less than one hour
+                if ((now - $time_sec) / 3600) < 1 then
+                    ((now - $time_sec) / 60 | floor) | tostring + "min ago"
+                # difference is less than 24 hours
+                elif ((now - $time_sec) / 3600) < 24 then
+                    ((now - $time_sec) / 3600 | floor) | tostring + "h ago"
+                else
+                    $time_sec | strflocaltime("%d/%b %H:%M")
+                end); "gray"),
+            owner_abbreviated: colored(
+                (if (.repository.owner.login | length) > 11 then
+                    (.repository.owner.login | .[0:10]) + "…"
+                else
+                    .repository.owner.login
+                end); "cyan"),
+            name_abbreviated: colored(
+                (if (.repository.name | length) > 16 then
+                    (.repository.name | .[0:15]) + "…"
+                else
+                    .repository.name
+                end); "cyan_bold"),
+            type: colored(.subject.type;"white_bold"),
             # Some infos have to be pulled from this URL in later steps, so no string modifications.
             url: .subject.url | tostring,
-            unread_symbol: colored((if .unread then "\u25cf" else "\u00a0" end);"magenta"),
+            reason: colored(.reason; "gray"),
             title: .subject.title
-        } | ["updated:>=\(.updated_short) repo:\(.full_name)", .iso8601, .thread_id, .thread_state, .comment_url, .timefmt, "\(.owner)/\(.name)", .type, .reason, .url, .unread_symbol, .title ] | @tsv'
+        } | [
+            .updated_short, .iso8601, .thread_id, .thread_state, .comment_url, .repo_full_name,
+            .unread_symbol, .timefmt, "\(.owner_abbreviated)/\(.name_abbreviated)", .type, .url,
+            .reason, .title
+        ] | @tsv'
 }
 
 print_notifs() {
@@ -180,11 +214,13 @@ print_notifs() {
             page_num=$((page_num + 1))
         fi
         new_notifs=$(
-            echo "$page" | while IFS=$'\t' read -r qualifier iso8601 thread_id thread_state comment_url timefmt repo type reason url unread_symbol title number; do
+            echo "$page" | while IFS=$'\t' read -r updated_short iso8601 thread_id thread_state \
+                comment_url repo_full_name unread_symbol timefmt repo_abbreviated type url reason \
+                title number; do
                 if grep -q "Discussion" <<<"$type"; then
                     # https://docs.github.com/en/search-github/searching-on-github/searching-discussions
-                    number=$(gh api graphql --cache=100h --raw-field filter="$title in:title $qualifier" \
-                        --raw-field query="$graphql_query_discussion" --jq '.data.search.nodes | .[].number') ||
+                    number="#$(gh api graphql --cache=100h --raw-field filter="$title in:title updated:>=$updated_short repo:$repo_full_name" \
+                        --raw-field query="$graphql_query_discussion" --jq '.data.search.nodes | .[].number')" ||
                         die "Failed GraphQL discussion query."
                 elif ! grep -q "^null" <<<"$url"; then
                     if grep -q "Commit" <<<"$type"; then
@@ -203,9 +239,10 @@ print_notifs() {
                         number=${url/*\//#}
                     fi
                 fi
-                printf "\n%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%b%s%b %s\t%s\n" \
-                    "$iso8601" "$thread_id" "$thread_state" "$comment_url" "$timefmt" \
-                    "$repo" "$type" "$reason" "$GREEN" "$number" "$NC" "$unread_symbol" "$title"
+                printf "\n%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%b%s%b\t%s \t%s\n" \
+                    "$iso8601" "$thread_id" "$thread_state" "$comment_url" "$repo_full_name" \
+                    "$unread_symbol" "$timefmt" "$repo_abbreviated" "$type" "$GREEN" "$number" \
+                    "$NC" "$reason" "$title"
             done
         ) || die "Something went wrong"
         all_notifs="$all_notifs$new_notifs"
@@ -222,9 +259,9 @@ print_notifs() {
     if [[ -z $result && $SHLVL -gt $NESTED_START_LVL ]]; then
         # TODO: exit fzf automatically if the list is empty after a reload
         # it does work with '--bind "zero:become:"', but this only came with version '0.40.0'
-        # workaround, since fzf hides the first elements with '--with-nth 5..'
+        # workaround, since fzf hides the first elements with '--with-nth 6..'
         # if the list is empty on a reload, the message would be hidden, so ' \b' (backspace) is added
-        echo -e " \b \b \b \b$FINAL_MSG"
+        echo -e " \b \b \b \b \b$FINAL_MSG"
     else
         echo "$result"
     fi
@@ -244,57 +281,57 @@ highlight_output() {
 }
 
 open_in_browser() {
-    local comment_number date time repo type number unhashed_num
-    IFS=' ' read -r _ _ _ comment_number date time repo type _ number _ <<<"$1"
+    local comment_number date time repo_full_name type number unhashed_num
+    IFS=' ' read -r _ _ _ comment_number repo_full_name _ date time _ type number _ <<<"$1"
     unhashed_num=$(tr -d "#" <<<"$number")
     case "$type" in
         CheckSuite)
-            "$python_executable" -m webbrowser "https://github.com/${repo}/actions"
+            "$python_executable" -m webbrowser "https://github.com/${repo_full_name}/actions"
             ;;
         Commit)
-            gh browse "$number" --repo "$repo"
+            gh browse "$number" --repo "$repo_full_name"
             ;;
         Discussion)
-            "$python_executable" -m webbrowser "https://github.com/${repo}/discussions/${number}"
+            "$python_executable" -m webbrowser "https://github.com/${repo_full_name}/discussions/${unhashed_num}"
             ;;
         Issue | PullRequest)
             if [[ $comment_number == "$unhashed_num" || $comment_number == null ]]; then
-                gh issue view "$number" --web --repo "$repo"
+                gh issue view "$number" --web --repo "$repo_full_name"
             else
-                "$python_executable" -m webbrowser "https://github.com/${repo}/issues/${unhashed_num}#issuecomment-${comment_number}"
+                "$python_executable" -m webbrowser "https://github.com/${repo_full_name}/issues/${unhashed_num}#issuecomment-${comment_number}"
             fi
             ;;
         Pre-release | Release)
-            gh release view "$number" --web --repo "$repo"
+            gh release view "$number" --web --repo "$repo_full_name"
             ;;
         *)
-            gh repo view --web "$repo"
+            gh repo view --web "$repo_full_name"
             ;;
     esac
 }
 
 view_notification() {
-    local all_comments date time repo type number
+    local all_comments date time repo_full_name type number
     if [ "$1" = "--all_comments" ]; then
         shift
         all_comments="1"
     fi
-    IFS=' ' read -r _ _ _ _ date time repo type _ number _ <<<"$1"
+    IFS=' ' read -r _ _ _ _ repo_full_name _ date time _ type number _ <<<"$1"
     printf "[%s %s - %s]\n" "$date" "$time" "$type"
     case "$type" in
         Commit)
             gh api --header "$GH_REST_API_VERSION" --cache=24h \
-                --method GET "repos/$repo/commits/$number" --jq '.files[].patch' | highlight_output
+                --method GET "repos/$repo_full_name/commits/$number" --jq '.files[].patch' | highlight_output
             ;;
         Issue)
             # use the '--comments' flag only if 'all_comments' exists and is not null
-            gh issue view "$number" --repo "$repo" ${all_comments:+"--comments"}
+            gh issue view "$number" --repo "$repo_full_name" ${all_comments:+"--comments"}
             ;;
         PullRequest)
-            gh pr view "$number" --repo "$repo" ${all_comments:+"--comments"}
+            gh pr view "$number" --repo "$repo_full_name" ${all_comments:+"--comments"}
             ;;
         Pre-release | Release)
-            gh release view "$number" --repo "$repo"
+            gh release view "$number" --repo "$repo_full_name"
             ;;
         *)
             printf "Seeing the preview of a %b%s%b is not supported.\n" "$WHITE_BOLD" "$type" "$NC"
@@ -330,7 +367,7 @@ select_notif() {
         "-+X"                 # reset screen clearing prevention
     )
 
-    local output expected_key selected_line repo type num
+    local output expected_key selected_line repo_full_name type num
     # make functions available in child processes
     # 'SHELL="$(which bash)"' is needed to use exported functions when the default shell
     # is not bash
@@ -351,8 +388,8 @@ select_notif() {
             --bind "change:first" \
             --bind "ctrl-a:execute-silent(mark_all_read {})+reload:print_notifs || true" \
             --bind "ctrl-b:execute-silent:open_in_browser {}" \
-            --bind "ctrl-d:toggle-preview+change-preview:if grep -q PullRequest <<<{9}; then gh pr diff {10} --repo {8}  | highlight_output; else view_notification {}; fi" \
-            --bind "ctrl-p:toggle-preview+change-preview:if grep -q PullRequest <<<{9}; then gh pr diff {10} --patch --repo {8} | highlight_output; else view_notification {}; fi" \
+            --bind "ctrl-d:toggle-preview+change-preview:if grep -q PullRequest <<<{10}; then gh pr diff {11} --repo {5}  | highlight_output; else view_notification {}; fi" \
+            --bind "ctrl-p:toggle-preview+change-preview:if grep -q PullRequest <<<{10}; then gh pr diff {11} --patch --repo {5} | highlight_output; else view_notification {}; fi" \
             --bind "ctrl-r:reload:print_notifs || true" \
             --bind "ctrl-t:execute-silent(mark_individual_read {})+reload:print_notifs || true" \
             --bind "enter:execute:view_notification --all_comments {} | less ${less_args[*]} >/dev/tty" \
@@ -373,7 +410,7 @@ select_notif() {
             --print-query \
             --prompt "GitHub Notifications > " \
             --reverse \
-            --with-nth 5..
+            --with-nth 6..
     )
     # actions that close fzf are defined below
     # 1st line ('--print-query'): the input query string
@@ -381,7 +418,7 @@ select_notif() {
     # 3rd line: the selected line when the user pressed the key
     expected_key="$(sed '1d;3d' <<<"$output")"
     selected_line="$(sed '1d;2d' <<<"$output")"
-    IFS=' ' read -r _ thread_id thread_state _ _ _ repo type _ num _ <<<"$selected_line"
+    IFS=' ' read -r _ thread_id thread_state _ repo_full_name _ _ _ _ type _ num _ <<<"$selected_line"
     [[ -z $type ]] && exit 0
     case "$expected_key" in
         esc)
@@ -391,7 +428,7 @@ select_notif() {
             ;;
         ctrl-x)
             if grep -qE "Issue|PullRequest" <<<"$type"; then
-                gh issue comment "$num" --repo "$repo"
+                gh issue comment "$num" --repo "$repo_full_name"
             else
                 printf "Writing comments is only supported for %bIssues%b and %bPullRequests%b.\n" "$WHITE_BOLD" "$NC" "$WHITE_BOLD" "$NC"
             fi
@@ -508,7 +545,7 @@ gh_notify() {
     else
         # remove unimportant elements from the static display
         # '[[:blank:]]' matches horizontal whitespace characters (spaces/ tabs)
-        echo "$notifs" | sed -E 's/^([^[:blank:]]+[[:blank:]]+){4}//'
+        echo "$notifs" | sed -E 's/^([^[:blank:]]+[[:blank:]]+){5}//'
     fi
 }
 
