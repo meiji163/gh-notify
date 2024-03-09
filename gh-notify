@@ -418,7 +418,7 @@ select_notif() {
     # 3rd line: the selected line when the user pressed the key
     expected_key="$(sed '1d;3d' <<<"$output")"
     selected_line="$(sed '1d;2d' <<<"$output")"
-    IFS=' ' read -r _ thread_id thread_state _ repo_full_name _ _ _ _ type _ num _ <<<"$selected_line"
+    IFS=' ' read -r _ thread_id thread_state _ repo_full_name _ _ _ _ type num _ <<<"$selected_line"
     [[ -z $type ]] && exit 0
     case "$expected_key" in
         esc)
