@@ -92,7 +92,7 @@ ${WHITE_BOLD}Table Format${NC}
   ${GREEN}1. Unread Symbol${NC}  Indicates if the notification is read or unread.
   ${GREEN}2. Time         ${NC}  The time when the notification was updated.
   ${GREEN}3. Repo         ${NC}  The repository related to the notification.
-  ${GREEN}4. Type         ${NC}  The type of the notification, e.g. Issue, Release, …
+  ${GREEN}4. Type         ${NC}  The type of the notification.
   ${GREEN}5. Number       ${NC}  The number associated with the notification.
   ${GREEN}6. Reason       ${NC}  The reason why the user received the notification.
   ${GREEN}7. Description  ${NC}  A brief description of the notification.
@@ -165,31 +165,31 @@ get_notifs() {
             thread_state: (if .unread then "UNREAD" else "READ" end),
             comment_url: .subject.latest_comment_url | tostring | split("/") | last,
             repo_full_name: .repository.full_name,
-            unread_symbol: colored((if .unread then "\u25cf" else "\u00a0" end);"magenta"),
+            unread_symbol: colored((if .unread then "\u25cf" else "\u00a0" end); "magenta"),
             # make sure each outcome has an equal number of fields separated by spaces
-            timefmt: colored(((.updated_at | fromdateiso8601) as $time_sec |
+            timefmt: colored((.updated_at | fromdateiso8601) as $time_sec |
                 # difference is less than one hour
                 if ((now - $time_sec) / 3600) < 1 then
-                    ((now - $time_sec) / 60 | floor) | tostring + "min ago"
+                    (now - $time_sec) / 60 | floor | tostring + "min ago"
                 # difference is less than 24 hours
                 elif ((now - $time_sec) / 3600) < 24 then
-                    ((now - $time_sec) / 3600 | floor) | tostring + "h ago"
+                    (now - $time_sec) / 3600 | floor | tostring + "h ago"
                 else
                     $time_sec | strflocaltime("%d/%b %H:%M")
-                end); "gray"),
+                end; "gray"),
             owner_abbreviated: colored(
-                (if (.repository.owner.login | length) > 11 then
-                    (.repository.owner.login | .[0:10]) + "…"
+                if (.repository.owner.login | length) > 11 then
+                    .repository.owner.login | .[0:10]  | tostring + "…"
                 else
                     .repository.owner.login
-                end); "cyan"),
+                end; "cyan"),
             name_abbreviated: colored(
-                (if (.repository.name | length) > 16 then
-                    (.repository.name | .[0:15]) + "…"
+                if (.repository.name | length) > 16 then
+                    .repository.name | .[0:15] | tostring + "…"
                 else
                     .repository.name
-                end); "cyan_bold"),
-            type: colored(.subject.type;"white_bold"),
+                end; "cyan_bold"),
+            type: colored(.subject.type; "white_bold"),
             # Some infos have to be pulled from this URL in later steps, so no string modifications.
             url: .subject.url | tostring,
             reason: colored(.reason; "gray"),
