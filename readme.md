@@ -64,7 +64,20 @@ gh notify [Flags]
 | <kbd>ctrl</kbd><kbd>x</kbd>    | write a comment with the editor and quit            |
 | <kbd>esc</kbd>                 | quit                                                |
 
+### Table Format
+
+| Field         | Description                         |
+| ------------- | ----------------------------------- |
+| unread symbol | indicates unread status             |
+| time          | last time the notification was read |
+| repo          | related repository                  |
+| type          | notification type                   |
+| number        | associated number                   |
+| reason        | trigger reason                      |
+| title         | notification title                  |
+
 ---
+
 ## Customizations
 
 ### Fuzzy Finder (fzf)
