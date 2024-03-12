@@ -90,7 +90,7 @@ ${WHITE_BOLD}Key Bindings fzf${NC}
 
 ${WHITE_BOLD}Table Format${NC}
   ${GREEN}unread symbol${NC}  indicates unread status
-  ${GREEN}time         ${NC}  last update
+  ${GREEN}time         ${NC}  last time the notification was read
   ${GREEN}repo         ${NC}  related repository
   ${GREEN}type         ${NC}  notification type
   ${GREEN}number       ${NC}  associated number
@@ -167,7 +167,7 @@ get_notifs() {
             repo_full_name: .repository.full_name,
             unread_symbol: colored((if .unread then "\u25cf" else "\u00a0" end); "magenta"),
             # make sure each outcome has an equal number of fields separated by spaces
-            timefmt: colored((.updated_at | fromdateiso8601) as $time_sec |
+            timefmt: colored((.last_read_at | fromdateiso8601) as $time_sec |
                 # difference is less than one hour
                 if ((now - $time_sec) / 3600) < 1 then
                     (now - $time_sec) / 60 | floor | tostring + "min ago"

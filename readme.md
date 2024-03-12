@@ -66,15 +66,15 @@ gh notify [Flags]
 
 ### Table Format
 
-| Field         | Description             |
-| ------------- | ----------------------- |
-| unread symbol | indicates unread status |
-| time          | last update             |
-| repo          | related repository      |
-| type          | notification type       |
-| number        | associated number       |
-| reason        | trigger reason          |
-| title         | notification title      |
+| Field         | Description                         |
+| ------------- | ----------------------------------- |
+| unread symbol | indicates unread status             |
+| time          | last time the notification was read |
+| repo          | related repository                  |
+| type          | notification type                   |
+| number        | associated number                   |
+| reason        | trigger reason                      |
+| title         | notification title                  |
 
 ---
 
