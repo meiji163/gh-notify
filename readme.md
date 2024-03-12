@@ -66,15 +66,15 @@ gh notify [Flags]
 
 ### Table Format
 
-| Field            | Description                                        |
-| ---------------- | -------------------------------------------------- |
-| 1. Unread Symbol | Indicates if the notification is read or unread.   |
-| 2. Time          | The time when the notification was updated.        |
-| 3. Repo          | The repository related to the notification.        |
-| 4. Type          | The type of the notification.                      |
-| 5. Number        | The number associated with the notification.       |
-| 6. Reason        | The reason why the user received the notification. |
-| 7. Description   | A brief description of the notification.           |
+| Field         | Description             |
+| ------------- | ----------------------- |
+| unread symbol | indicates unread status |
+| time          | last update             |
+| repo          | related repository      |
+| type          | notification type       |
+| number        | associated number       |
+| reason        | trigger reason          |
+| title         | notification title      |
 
 ---
 

@@ -89,13 +89,13 @@ ${WHITE_BOLD}Key Bindings fzf${NC}
   ${GREEN}esc      ${NC}  quit
 
 ${WHITE_BOLD}Table Format${NC}
-  ${GREEN}1. Unread Symbol${NC}  Indicates if the notification is read or unread.
-  ${GREEN}2. Time         ${NC}  The time when the notification was updated.
-  ${GREEN}3. Repo         ${NC}  The repository related to the notification.
-  ${GREEN}4. Type         ${NC}  The type of the notification.
-  ${GREEN}5. Number       ${NC}  The number associated with the notification.
-  ${GREEN}6. Reason       ${NC}  The reason why the user received the notification.
-  ${GREEN}7. Description  ${NC}  A brief description of the notification.
+  ${GREEN}unread symbol${NC}  indicates unread status
+  ${GREEN}time         ${NC}  last update
+  ${GREEN}repo         ${NC}  related repository
+  ${GREEN}type         ${NC}  notification type
+  ${GREEN}number       ${NC}  associated number
+  ${GREEN}reason       ${NC}  trigger reason
+  ${GREEN}title        ${NC}  notification title
 
 ${WHITE_BOLD}Example${NC}
     ${DARK_GRAY}# Display the last 20 notifications${NC}
