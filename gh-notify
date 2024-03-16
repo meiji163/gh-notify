@@ -178,14 +178,14 @@ get_notifs() {
                     $time_sec | strflocaltime("%d/%b %H:%M")
                 end; "gray"),
             owner_abbreviated: colored(
-                if (.repository.owner.login | length) > 11 then
-                    .repository.owner.login | .[0:10]  | tostring + "…"
+                if (.repository.owner.login | length) > 10 then
+                    .repository.owner.login | .[0:9]  | tostring + "…"
                 else
                     .repository.owner.login
                 end; "cyan"),
             name_abbreviated: colored(
-                if (.repository.name | length) > 16 then
-                    .repository.name | .[0:15] | tostring + "…"
+                if (.repository.name | length) > 13 then
+                    .repository.name | .[0:12] | tostring + "…"
                 else
                     .repository.name
                 end; "cyan_bold"),
@@ -239,7 +239,7 @@ print_notifs() {
                         number=${url/*\//#}
                     fi
                 fi
-                printf "\n%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%b%s%b\t%s \t%s\n" \
+                printf "\n%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%b%s%b\t%s\t%s\n" \
                     "$iso8601" "$thread_id" "$thread_state" "$comment_url" "$repo_full_name" \
                     "$unread_symbol" "$timefmt" "$repo_abbreviated" "$type" "$GREEN" "$number" \
                     "$NC" "$reason" "$title"
@@ -445,14 +445,18 @@ check_version() {
     local tool=$1 threshold=$2 on_error=${3:-die}
     local user_version
     declare -a ver_parts threshold_parts
-    user_version=$($tool --version 2>&1 | grep -Eo '[0-9]+(\.[0-9]+)*' | sed q)
+    user_version=$(command $tool --version 2>&1 |
+        command grep --color=never --extended-regexp --only-matching --regexp='[0-9]+(\.[0-9]+)*' |
+        command sed q)
 
     IFS='.' read -ra ver_parts <<<"$user_version"
     IFS='.' read -ra threshold_parts <<<"$threshold"
 
-    for i in "${!ver_parts[@]}"; do
-        if (("${ver_parts[i]}" < "${threshold_parts[i]}")); then
+    for i in "${!threshold_parts[@]}"; do
+        if ((i >= ${#ver_parts[@]})) || (("${ver_parts[i]}" < "${threshold_parts[i]}")); then
             $on_error "Your '$tool' version '$user_version' is insufficient. The minimum required version is '$threshold'."
+        elif (("${ver_parts[i]}" > "${threshold_parts[i]}")); then
+            break
         fi
     done
 }
