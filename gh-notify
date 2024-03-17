@@ -514,8 +514,10 @@ update_subscription() {
         possibleTypes=$(gh api graphql --raw-field query="$graphql_query_subscribable" \
             --jq '.data.__type.possibleTypes | map(.name) | join(", ")' ||
             die "Failed GraphQL query for possibleTypes.")
-        printf "The URL is not valid for subscription.\nValid subscription types: %b%s%b\n" "$WHITE_BOLD" "$possibleTypes" "$NC"
-        exit 1
+        die "$(
+            printf "The URL is not valid for subscription.\n"
+            printf "Valid subscription types: %b%s%b\n" "$WHITE_BOLD" "$possibleTypes" "$NC"
+        )"
     fi
 }
 
@@ -536,7 +538,6 @@ gh_notify() {
         exit 0
     fi
 
-    # Bail early if we aren't static and pre-reqs aren't found
     if ! $print_static_flag; then
         for python_version in python python3; do
             if type -p $python_version >/dev/null; then
@@ -568,4 +569,7 @@ gh_notify() {
     fi
 }
 
-gh_notify
+# This will call the function only when the script is run, not when it's sourced
+if [[ ${BASH_SOURCE[0]} == "${0}" ]]; then
+    gh_notify
+fi
