@@ -462,14 +462,14 @@ check_version() {
 }
 
 gh_notify() {
-    local graphql_query_resource updated_state update_text
+    local python_version graphql_query_resource updated_state update_text
     local graphql_mutation_update_subscription possibleTypes notifs
 
     # Bail early if we aren't static and pre-reqs aren't found
     if [ $print_static_flag = "false" ]; then
-        for python in python python3; do
-            if type -p $python >/dev/null; then
-                python_executable=$python
+        for python_version in python python3; do
+            if type -p $python_version >/dev/null; then
+                python_executable=$python_version
                 break
             fi
         done
@@ -477,11 +477,10 @@ gh_notify() {
             die "install 'python' or use the -s flag"
         fi
 
-        for tool in less fzf; do
-            if ! type -p $tool >/dev/null; then
-                die "install '$tool' or use the -s flag"
-            fi
-        done
+        if ! type -p fzf >/dev/null; then
+            die "install 'fzf' or use the -s flag"
+        fi
+
         check_version fzf "$MIN_FZF_VERSION"
     fi
 

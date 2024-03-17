@@ -9,6 +9,8 @@ https://github.com/meiji163/gh-notify/assets/92653266/ecb7f246-ea5e-452d-b114-58
 
 ## Install
 
+Make sure you have [GitHub CLI (gh)](https://github.com/cli/cli#installation) installed.
+
 ```sh
 # install
 gh ext install meiji163/gh-notify
@@ -18,13 +20,11 @@ gh ext upgrade meiji163/gh-notify
 gh ext remove meiji163/gh-notify
 ```
 
-- to use `gh notify` interactively also install these tools
-  - [Fuzzy Finder (fzf)](https://github.com/junegunn/fzf#installation)
-  - [Less pager](http://greenwoodsoftware.com/less/download.html), is usually installed by
-    default on Linux and macOS
-  - [Python](https://www.python.org/) in cases where `gh` can't open the `URL` in your
-    browser, this oneliner is used as a cross-platform solution: `python -m webbrowser
-    <URL>`
+To use `gh notify` interactively, install these tools as well:
+- [Fuzzy Finder (fzf)](https://github.com/junegunn/fzf#installation) - This allows for
+  interaction with listed data.
+- [Python](https://www.python.org/) - In cases where `gh` can't open the `URL` in your browser, this
+  one-liner is used as a cross-platform solution: `python -m webbrowser <URL>`
 
 ## Usage
 
@@ -81,13 +81,16 @@ gh notify [Flags]
 ## Customizations
 
 ### Fuzzy Finder (fzf)
-Customize fzf key bindings by exporting `ENVIRONMENT VARIABLES` to your `.bashrc`/`.zshrc`. See the man page (`man fzf`) for `AVAILABLE KEYS/ EVENTS` or [junegunn/fzf#environment-variables](https://github.com/junegunn/fzf#environment-variables) on GitHub for more details.
+You can customize the `fzf` key bindings by exporting `ENVIRONMENT VARIABLES` to your `.bashrc` or
+`.zshrc`. For `AVAILABLE KEYS/ EVENTS`, refer to the `fzf` man page or visit
+[junegunn/fzf#environment-variables](https://github.com/junegunn/fzf#environment-variables) on
+GitHub.
 
-- NOTE: [How to use ALT commands in a terminal on macOS?](https://superuser.com/questions/496090/how-to-use-alt-commands-in-a-terminal-on-os-x)
+- **NOTE**: [How to use ALT commands in a terminal on macOS?](https://superuser.com/questions/496090/how-to-use-alt-commands-in-a-terminal-on-os-x)
 
 ```sh
 # ~/.bashrc or ~/.zshrc
-# The following examples allow you to clear the input query with alt+c,
+# The examples below enable you to clear the input query with alt+c,
 # jump to the first/last result with alt+u/d, refresh the preview window with alt+r
 # and scroll the preview in larger steps with ctrl+w/s.
 export FZF_DEFAULT_OPTS="
@@ -97,13 +100,14 @@ export FZF_DEFAULT_OPTS="
 --bind 'ctrl-w:preview-half-page-up,ctrl-s:preview-half-page-down'"
 ```
 
-### GitHub command line tool (gh)
-In the config file of the `gh` tool you can set your preferred editor. This is handy when you use the <kbd>ctrl</kbd><kbd>x</kbd> hotkey to write a comment on a notification.
+### GitHub Command Line Tool (gh)
+In the `gh` tool's config file, you can specify your preferred editor. This is particularly useful
+when you use the <kbd>ctrl</kbd><kbd>x</kbd> hotkey to comment on a notification.
 
 ```sh
-# See more details
+# To see more details
 gh config
-# For example, set the editor to Visual Studio Code or Vim.
+# For example, you can set the editor to Visual Studio Code or Vim.
 gh config set editor "code --wait"
 gh config set editor vim
 ```
