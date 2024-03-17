@@ -3,7 +3,7 @@
 # GitHub CLI Notification Extension
 A [gh](https://github.com/cli/cli) extension to view your GitHub notifications from the command line.
 
-https://github.com/meiji163/gh-notify/assets/92653266/ecb7f246-ea5e-452d-b114-587f05b931e4
+https://github.com/meiji163/gh-notify/assets/92653266/b7d7fcdb-8a25-43fc-8f63-d11f30960084
 
  </div>
 
