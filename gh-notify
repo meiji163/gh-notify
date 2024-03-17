@@ -453,9 +453,9 @@ check_version() {
     IFS='.' read -ra threshold_parts <<<"$threshold"
 
     for i in "${!threshold_parts[@]}"; do
-        if ((i >= ${#ver_parts[@]})) || (("${ver_parts[i]}" < "${threshold_parts[i]}")); then
+        if ((i >= ${#ver_parts[@]})) || ((ver_parts[i] < threshold_parts[i])); then
             $on_error "Your '$tool' version '$user_version' is insufficient. The minimum required version is '$threshold'."
-        elif (("${ver_parts[i]}" > "${threshold_parts[i]}")); then
+        elif ((ver_parts[i] > threshold_parts[i])); then
             break
         fi
     done
