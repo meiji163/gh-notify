@@ -404,7 +404,7 @@ select_notif() {
             --no-multi \
             --pointer="▶" \
             --preview "view_notification {}" \
-            --preview-window "wrap:${preview_window_visibility}:50%:right:border-left:<65(wrap:${preview_window_visibility}:75%:down:border-top)" \
+            --preview-window "default:wrap:${preview_window_visibility}:60%:right:border-left" \
             --print-query \
             --prompt "GitHub Notifications > " \
             --reverse \
@@ -426,10 +426,11 @@ select_notif() {
         ctrl-x)
             if grep -qE "Issue|PullRequest" <<<"$type"; then
                 gh issue comment "$num" --repo "$repo_full_name"
+                mark_individual_read "$selected_line" || die "Failed to mark the notification as read."
             else
                 printf "Writing comments is only supported for %bIssues%b and %bPullRequests%b.\n" "$WHITE_BOLD" "$NC" "$WHITE_BOLD" "$NC"
+                exit 1
             fi
-            mark_individual_read "$selected_line" || die "Failed to mark the notification as read."
             ;;
         *)
             die "Unexpected key '$expected_key'"
