@@ -35,13 +35,13 @@ export WHITE_BOLD='\033[1m'
 export exclusion_string='XXX_BOGUS_STRING_THAT_SHOULD_NOT_EXIST_XXX'
 export filter_string=''
 export num_notifications='0'
-export only_participating_flag='false'
-export include_all_flag='false'
+export only_participating_flag=false
+export include_all_flag=false
 export preview_window_visibility='hidden'
 export python_executable=''
 # not necessarily to be exported, since they are not used in any child process
-print_static_flag='false'
-mark_read_flag='false'
+print_static_flag=false
+mark_read_flag=false
 update_subscription_url=''
 
 # ===================== basic functions =====================
@@ -112,12 +112,12 @@ while getopts 'e:f:n:u:pawhsr' flag; do
         e) exclusion_string="${OPTARG}" ;;
         f) filter_string="${OPTARG}" ;;
         n) num_notifications="${OPTARG}" ;;
-        p) only_participating_flag='true' ;;
+        p) only_participating_flag=true ;;
         u) update_subscription_url="${OPTARG}" ;;
-        a) include_all_flag='true' ;;
+        a) include_all_flag=true ;;
         w) preview_window_visibility='nohidden' ;;
-        s) print_static_flag='true' ;;
-        r) mark_read_flag='true' ;;
+        s) print_static_flag=true ;;
+        r) mark_read_flag=true ;;
         h)
             print_help_text
             exit 0
@@ -137,10 +137,8 @@ get_notifs() {
     if [ "$num_notifications" != "0" ]; then
         local_page_size=$num_notifications
     fi
-    printf >&2 "." # "marching ants" because sometimes this takes a bit.
-    # Use '-F/--field' to pass a variable that is a number, Boolean, or null. Use '-f/--raw-field'
-    # for other variables.
-    # Playground to test jq: https://jqplay.org/
+    # "marching ants" because sometimes this takes a bit.
+    printf >&2 "."
     gh api --header "$GH_REST_API_VERSION" --method GET notifications --cache=0s \
         --field per_page="$local_page_size" --field page="$page_num" \
         --field participating="$only_participating_flag" --field all="$include_all_flag" \
@@ -178,14 +176,14 @@ get_notifs() {
                     $time_sec | strflocaltime("%d/%b %H:%M")
                 end; "gray"),
             owner_abbreviated: colored(
-                if (.repository.owner.login | length) > 11 then
-                    .repository.owner.login | .[0:10]  | tostring + "…"
+                if (.repository.owner.login | length) > 10 then
+                    .repository.owner.login | .[0:9]  | tostring + "…"
                 else
                     .repository.owner.login
                 end; "cyan"),
             name_abbreviated: colored(
-                if (.repository.name | length) > 16 then
-                    .repository.name | .[0:15] | tostring + "…"
+                if (.repository.name | length) > 13 then
+                    .repository.name | .[0:12] | tostring + "…"
                 else
                     .repository.name
                 end; "cyan_bold"),
@@ -239,7 +237,7 @@ print_notifs() {
                         number=${url/*\//#}
                     fi
                 fi
-                printf "\n%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%b%s%b\t%s \t%s\n" \
+                printf "\n%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%b%s%b\t%s\t%s\n" \
                     "$iso8601" "$thread_id" "$thread_state" "$comment_url" "$repo_full_name" \
                     "$unread_symbol" "$timefmt" "$repo_abbreviated" "$type" "$GREEN" "$number" \
                     "$NC" "$reason" "$title"
@@ -406,7 +404,7 @@ select_notif() {
             --no-multi \
             --pointer="▶" \
             --preview "view_notification {}" \
-            --preview-window "wrap:${preview_window_visibility}:50%:right:border-left:<65(wrap:${preview_window_visibility}:75%:down:border-top)" \
+            --preview-window "default:wrap:${preview_window_visibility}:60%:right:border-left" \
             --print-query \
             --prompt "GitHub Notifications > " \
             --reverse \
@@ -422,17 +420,17 @@ select_notif() {
     [[ -z $type ]] && exit 0
     case "$expected_key" in
         esc)
-            # quit with exit code 0; 'fzf' returns 130
-            # TODO: when updating to '0.38.0' use '--bind "esc:become:"'
+            # quit with exit code 0; 'fzf' returns 130 by default
             exit 0
             ;;
         ctrl-x)
             if grep -qE "Issue|PullRequest" <<<"$type"; then
                 gh issue comment "$num" --repo "$repo_full_name"
+                mark_individual_read "$selected_line" || die "Failed to mark the notification as read."
             else
                 printf "Writing comments is only supported for %bIssues%b and %bPullRequests%b.\n" "$WHITE_BOLD" "$NC" "$WHITE_BOLD" "$NC"
+                exit 1
             fi
-            mark_individual_read "$selected_line" || die "Failed to mark the notification as read."
             ;;
         *)
             die "Unexpected key '$expected_key'"
@@ -445,27 +443,106 @@ check_version() {
     local tool=$1 threshold=$2 on_error=${3:-die}
     local user_version
     declare -a ver_parts threshold_parts
-    user_version=$($tool --version 2>&1 | grep -Eo '[0-9]+(\.[0-9]+)*' | sed q)
+    user_version=$(command $tool --version 2>&1 |
+        command grep --color=never --extended-regexp --only-matching --regexp='[0-9]+(\.[0-9]+)*' |
+        command sed q)
 
     IFS='.' read -ra ver_parts <<<"$user_version"
     IFS='.' read -ra threshold_parts <<<"$threshold"
 
-    for i in "${!ver_parts[@]}"; do
-        if (("${ver_parts[i]}" < "${threshold_parts[i]}")); then
+    for i in "${!threshold_parts[@]}"; do
+        if ((i >= ${#ver_parts[@]})) || ((ver_parts[i] < threshold_parts[i])); then
             $on_error "Your '$tool' version '$user_version' is insufficient. The minimum required version is '$threshold'."
+        elif ((ver_parts[i] > threshold_parts[i])); then
+            break
         fi
     done
 }
 
-gh_notify() {
-    local graphql_query_resource updated_state update_text
-    local graphql_mutation_update_subscription possibleTypes notifs
+update_subscription() {
+    local graphql_query_resource=$'query ($url_input: URI!) {resource(url: $url_input) { ... on Subscribable { __typename id viewerCanSubscribe viewerSubscription }}}'
+    local graphql_mutation_update_subscription=$'mutation ($updated_state: SubscriptionState!, $node_id: ID!) { updateSubscription(input: {state: $updated_state, subscribableId: $node_id}) { subscribable { viewerSubscription }}}'
+    local graphql_query_subscribable=$'{ __type(name: "Subscribable") { possibleTypes { name }}}'
+    local updated_state update_text possibleTypes
+    if IFS=$'\t' read -r object_type node_id viewer_can_subscribe viewer_subscription < <(gh api graphql \
+        --raw-field url_input="$update_subscription_url" \
+        --raw-field query="$graphql_query_resource" \
+        --jq '.data.resource | map(.) | @tsv' 2>/dev/null); then
+        if [[ -z $object_type ]]; then
+            die "Your input appears to be an invalid URL: '$update_subscription_url'."
+        elif [[ $viewer_subscription != "SUBSCRIBED" && ! $viewer_can_subscribe ]]; then
+            die "You are not allowed to subscribe to this '$object_type'."
+        fi
+        # The enumValues for the 'SubscriptionState' are:
+        #"UNSUBSCRIBED" - "The User is only notified when participating or @mentioned."
+        #"SUBSCRIBED" - "The User is notified of all conversations."
+        #"IGNORED" - "The User is never notified."
+        case "$viewer_subscription" in
+            SUBSCRIBED)
+                updated_state="UNSUBSCRIBED"
+                update_text="Notifications disabled for this '$object_type'."
+                ;;
+            IGNORED | UNSUBSCRIBED)
+                updated_state="SUBSCRIBED"
+                update_text="Notifications enabled for this '$object_type'."
+                ;;
+            *)
+                # TODO: When a user makes a 'Custom' selection on what to watch in a repo via the
+                # Web UI. For instance, if a user chooses to only watch 'Releases', then
+                # 'viewer_subscription' becomes null for any URL associated with the entire repo and
+                # this error message is displayed. Currently, there is no workaround for this. Last
+                # checked: March '24.
+                die "The queried value for the current status is unknown: '$viewer_subscription'."
+                ;;
+        esac
 
-    # Bail early if we aren't static and pre-reqs aren't found
-    if [ $print_static_flag = "false" ]; then
-        for python in python python3; do
-            if type -p $python >/dev/null; then
-                python_executable=$python
+        # NOTE: For example, if you "UNSUBSCRIBE" from an Issue but you are still
+        # "SUBSCRIBED" to the Repository where the Issue resides, the Issue's
+        # subscription status is automatically set to "IGNORED" and can never be set
+        # to "UNSUBSCRIBED" as long as you are "SUBSCRIBED" to the Repository. This is
+        # a design decision by GitHub.
+        updated_state=$(gh api graphql --raw-field updated_state="$updated_state" \
+            --raw-field node_id="$node_id" \
+            --raw-field query="$graphql_mutation_update_subscription" \
+            --jq '.data.updateSubscription.subscribable.viewerSubscription') ||
+            die "Failed GraphQL mutation to update the subscription status."
+        echo "The list of all your subscriptions is only available via the Web UI."
+        printf "%bhttps://github.com/notifications/subscriptions%b\n\n" "$DARK_GRAY" "$NC"
+        printf "%b%s%b: %b%s%b\n" "$GREEN" "$updated_state" "$NC" "$WHITE_BOLD" "$update_text" "$NC"
+        printf "%b%s%b\n" "$DARK_GRAY" "$update_subscription_url" "$NC"
+        exit 0
+    else
+        possibleTypes=$(gh api graphql --raw-field query="$graphql_query_subscribable" \
+            --jq '.data.__type.possibleTypes | map(.name) | join(", ")' ||
+            die "Failed GraphQL query for possibleTypes.")
+        die "$(
+            printf "The URL is not valid for subscription.\n"
+            printf "Valid subscription types: %b%s%b\n" "$WHITE_BOLD" "$possibleTypes" "$NC"
+        )"
+    fi
+}
+
+gh_notify() {
+    local python_version notifs
+
+    if ! type -p gh >/dev/null; then
+        die "install 'gh'"
+    fi
+
+    if [[ -n $update_subscription_url ]]; then
+        update_subscription
+    fi
+
+    if $mark_read_flag; then
+        mark_all_read "" || die "Failed to mark notifications as read."
+        echo "All notifications have been marked as read."
+        exit 0
+    fi
+
+    if ! $print_static_flag; then
+        for python_version in python python3; do
+            if type -p $python_version >/dev/null; then
+                python_executable=$python_version
                 break
             fi
         done
@@ -473,74 +550,18 @@ gh_notify() {
             die "install 'python' or use the -s flag"
         fi
 
-        for tool in less fzf; do
-            if ! type -p $tool >/dev/null; then
-                die "install '$tool' or use the -s flag"
-            fi
-        done
-        check_version fzf "$MIN_FZF_VERSION"
-    fi
-
-    if [[ -n $update_subscription_url ]]; then
-        graphql_query_resource=$'query ($url_input: URI!) {resource(url: $url_input) { ... on Subscribable { __typename id viewerCanSubscribe viewerSubscription }}}'
-        if IFS=$'\t' read -r object_type node_id viewer_can_subscribe viewer_subscription < <(gh api graphql \
-            --raw-field url_input="$update_subscription_url" --raw-field query="$graphql_query_resource" \
-            --jq '.data.resource | map(.) | @tsv' 2>/dev/null); then
-            if [[ $viewer_subscription != "SUBSCRIBED" && ! $viewer_can_subscribe ]]; then
-                die "You are not allowed to subscribe to this '$object_type'."
-            fi
-            case "$viewer_subscription" in
-                SUBSCRIBED)
-                    updated_state="UNSUBSCRIBED"
-                    update_text="Notifications disabled for this '$object_type'."
-                    ;;
-                IGNORED | UNSUBSCRIBED)
-                    updated_state="SUBSCRIBED"
-                    update_text="Notifications enabled for this '$object_type'."
-                    ;;
-                *)
-                    die "ERROR: the queried value for the current status is unknown: $viewer_subscription"
-                    ;;
-            esac
-            graphql_mutation_update_subscription=$'mutation ($updated_state: SubscriptionState!, $node_id: ID!) { updateSubscription(input: {state: $updated_state, subscribableId: $node_id}) { subscribable { viewerSubscription }}}'
-            # NOTE: For example, if you "UNSUBSCRIBE" from an Issue but you are still
-            # "SUBSCRIBED" to the Repository where the Issue resides, the Issue's
-            # subscription status is automatically set to "IGNORED" and can never be set
-            # to "UNSUBSCRIBED" as long as you are "SUBSCRIBED" to the Repository. This is
-            # a design decision by GitHub. The enumValues for the 'SubscriptionState' are:
-            # "UNSUBSCRIBED" - "The User is only notified when participating or @mentioned."
-            # "SUBSCRIBED" - "The User is notified of all conversations."
-            # "IGNORED" - "The User is never notified."
-            updated_state=$(gh api graphql --raw-field updated_state="$updated_state" \
-                --raw-field node_id="$node_id" \
-                --raw-field query="$graphql_mutation_update_subscription" \
-                --jq '.data.updateSubscription.subscribable.viewerSubscription') ||
-                die "Failed GraphQL mutation to update the subscription status."
-            echo "The list with all your subscriptions is only available via the Web UI."
-            printf "%bhttps://github.com/notifications/subscriptions%b\n\n" "$DARK_GRAY" "$NC"
-            printf "%b%s%b: %b%s%b\n" "$GREEN" "$updated_state" "$NC" "$WHITE_BOLD" "$update_text" "$NC"
-            printf "%b%s%b\n" "$DARK_GRAY" "$update_subscription_url" "$NC"
-            exit 0
-        else
-            possibleTypes=$(gh api graphql --raw-field query='{ __type(name: "Subscribable") { possibleTypes { name }}}' \
-                --jq '.data.__type.possibleTypes | map(.name) | join(", ")' ||
-                die "Failed GraphQL query for possibleTypes.")
-            printf "The URL is invalid to subscribe to.\nValid subscription types: %b%s%b\n" "$WHITE_BOLD" "$possibleTypes" "$NC"
-            exit 1
+        if ! type -p fzf >/dev/null; then
+            die "install 'fzf' or use the -s flag"
         fi
-    fi
 
-    if [ "$mark_read_flag" = "true" ]; then
-        mark_all_read "" || die "Failed to mark notifications as read."
-        echo "All notifications have been marked as read."
-        exit 0
+        check_version fzf "$MIN_FZF_VERSION"
     fi
 
     notifs="$(print_notifs)"
     if [ -z "$notifs" ]; then
         echo "$FINAL_MSG"
         exit 0
-    elif [ $print_static_flag = "false" ]; then
+    elif ! $print_static_flag; then
         select_notif "$notifs"
     else
         # remove unimportant elements from the static display
@@ -549,4 +570,7 @@ gh_notify() {
     fi
 }
 
-gh_notify
+# This will call the function only when the script is run, not when it's sourced
+if [[ ${BASH_SOURCE[0]} == "${0}" ]]; then
+    gh_notify
+fi
