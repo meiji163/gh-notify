@@ -16,6 +16,13 @@ set -o errexit -o nounset -o pipefail
 # The minimum fzf version that the user needs to run all interactive commands.
 MIN_FZF_VERSION="0.29.0"
 
+# Assign 'GH_NOTIFY_DEBUG_MODE' with 'true' to see more information
+export GH_NOTIFY_DEBUG_MODE=${GH_NOTIFY_DEBUG_MODE:-false}
+# 'GH_DEBUG' is useful for determining why a call to the GitHub API might have failed
+if $GH_NOTIFY_DEBUG_MODE; then
+    export GH_DEBUG=api
+fi
+
 # export variables for use in child processes
 # https://docs.github.com/en/rest/overview/api-versions
 export GH_REST_API_VERSION="X-GitHub-Api-Version:2022-11-28"
@@ -200,50 +207,18 @@ get_notifs() {
 }
 
 print_notifs() {
-    local all_notifs page_num page new_notifs graphql_query_discussion result
+    local all_notifs page_num page new_notifs result
     all_notifs=''
     page_num=1
-    graphql_query_discussion=$'query ($filter: String!) { search(query: $filter, type: DISCUSSION, first: 1) { nodes { ... on Discussion { number }}}}'
     while true; do
         page=$(get_notifs $page_num) || die "Failed to get notifications."
-        if [ "$page" == "" ]; then
+        if [ -z "$page" ]; then
             break
         else
             page_num=$((page_num + 1))
         fi
-        new_notifs=$(
-            echo "$page" | while IFS=$'\t' read -r updated_short iso8601 thread_id thread_state \
-                comment_url repo_full_name unread_symbol timefmt repo_abbreviated type url reason \
-                title number; do
-                if grep -q "Discussion" <<<"$type"; then
-                    # https://docs.github.com/en/search-github/searching-on-github/searching-discussions
-                    number="#$(gh api graphql --cache=100h --raw-field filter="$title in:title updated:>=$updated_short repo:$repo_full_name" \
-                        --raw-field query="$graphql_query_discussion" --jq '.data.search.nodes | .[].number')" ||
-                        die "Failed GraphQL discussion query."
-                elif ! grep -q "^null" <<<"$url"; then
-                    if grep -q "Commit" <<<"$type"; then
-                        number=$(basename "$url" | head -c 7)
-                    elif grep -q "Release" <<<"$type"; then
-                        # directly read the output into number and prerelease variables
-                        if IFS=$'\t' read -r number prerelease < <(gh api --cache=100h --header "$GH_REST_API_VERSION" \
-                            --method GET "$url" --jq '[.tag_name, .prerelease] | @tsv'); then
-                            "$prerelease" && type="Pre-release"
-                        else
-                            # it may happen that URLs are retrieved but are already dead and therefore skipped
-                            continue
-                        fi
-                    else
-                        # gh api calls cost time, try to avoid them as much as possible
-                        number=${url/*\//#}
-                    fi
-                fi
-                printf "\n%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%b%s%b\t%s\t%s\n" \
-                    "$iso8601" "$thread_id" "$thread_state" "$comment_url" "$repo_full_name" \
-                    "$unread_symbol" "$timefmt" "$repo_abbreviated" "$type" "$GREEN" "$number" \
-                    "$NC" "$reason" "$title"
-            done
-        ) || die "Something went wrong"
-        all_notifs="$all_notifs$new_notifs"
+        new_notifs=$(process_page "$page") || die "Failed to process page."
+        all_notifs="${all_notifs}${new_notifs}"
         # this is going to be a bit funky.
         # if you specify a number larger than 100
         # GitHub will ignore it and give you only 100
@@ -263,6 +238,77 @@ print_notifs() {
     else
         echo "$result"
     fi
+}
+
+# Processes a page of GitHub notifications, extracting and formatting relevant details.
+process_page() {
+    local page="$1"
+    while IFS=$'\t' read -r updated_short iso8601 thread_id thread_state \
+        comment_url repo_full_name unread_symbol timefmt repo_abbreviated type url reason \
+        title; do
+        local number="" modified_type
+        if grep -q "Discussion" <<<"$type"; then
+            number=$(process_discussion "$title" "$updated_short" "$repo_full_name") || return 1
+        elif ! grep -q "^null" <<<"$url"; then
+            if ! output=$(process_url "$type" "$url"); then
+                return 1
+            fi
+            read -r number modified_type <<<"$output"
+            if [[ -z $number ]]; then
+                continue
+            fi
+        fi
+        printf "\n%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%b%s%b\t%s\t%s\n" \
+            "$iso8601" "$thread_id" "$thread_state" "$comment_url" "$repo_full_name" \
+            "$unread_symbol" "$timefmt" "$repo_abbreviated" "${modified_type:-$type}" \
+            "$GREEN" "$number" "$NC" "$reason" "$title"
+    done <<<"$page"
+}
+
+# Extracts and formats relevant information from a GitHub URL based on its type
+# Returns: a number and optionally a new type, or raises an error for release types
+process_url() {
+    local type="$1" url="$2"
+    if grep -q "Commit" <<<"$type"; then
+        basename "$url" | head -c 7
+    elif grep -q "Release" <<<"$type"; then
+        if IFS=$'\t' read -r number prerelease < <(gh api "$url" \
+            --cache=100h \
+            --header "$GH_REST_API_VERSION" \
+            --method GET \
+            --jq '[.tag_name, .prerelease] | @tsv' 2>/dev/null); then
+            if "$prerelease"; then
+                echo "$number Pre-release"
+            else
+                echo "$number"
+            fi
+        else
+            # Release URLs may already be inaccessible and are therefore skipped unless in Debug
+            # mode. Since nothing will be sent, the notification will be skipped in the
+            # 'process_page' function.
+            if $GH_NOTIFY_DEBUG_MODE; then
+                die "Failed to retrieve the release information: $url"
+            fi
+        fi
+    else
+        # Minimize gh API calls as they are time-consuming
+        echo "${url/*\//#}"
+    fi
+}
+
+# Executes a GraphQL query for Discussion search using the provided information
+# Returns the found number or raises an error
+process_discussion() {
+    local title="$1" updated_short="$2" repo_full_name="$3"
+    local graphql_query_discussion
+    # https://docs.github.com/en/search-github/searching-on-github/searching-discussions
+    graphql_query_discussion=$'query ($filter: String!) {
+        search(query: $filter, type: DISCUSSION, first: 1) { nodes { ... on Discussion { number }}}}'
+    gh api graphql \
+        --cache=100h \
+        --raw-field query="$graphql_query_discussion" \
+        --raw-field filter="$title in:title updated:>=$updated_short repo:$repo_full_name" \
+        --jq '.data.search.nodes | "#\(.[].number)"' || die "Failed GraphQL discussion query."
 }
 
 highlight_output() {
@@ -370,6 +416,7 @@ select_notif() {
     # 'SHELL="$(which bash)"' is needed to use exported functions when the default shell
     # is not bash
     export -f print_help_text print_notifs get_notifs
+    export -f process_page process_discussion process_url
     export -f highlight_output open_in_browser view_notification
     export -f mark_all_read mark_individual_read
     # The 'die' function is not exported because 'fzf' warns you about the error in
