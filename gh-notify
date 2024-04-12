@@ -16,19 +16,47 @@ set -o errexit -o nounset -o pipefail
 # The minimum fzf version that the user needs to run all interactive commands.
 MIN_FZF_VERSION="0.29.0"
 
-# Assign 'GH_NOTIFY_DEBUG_MODE' with 'true' to see more information
-export GH_NOTIFY_DEBUG_MODE=${GH_NOTIFY_DEBUG_MODE:-false}
-# 'GH_DEBUG' is useful for determining why a call to the GitHub API might have failed
-if $GH_NOTIFY_DEBUG_MODE; then
-    export GH_DEBUG=api
-fi
-
 # export variables for use in child processes
 # https://docs.github.com/en/rest/overview/api-versions
 export GH_REST_API_VERSION="X-GitHub-Api-Version:2022-11-28"
 # Enable terminal-style output even when the output is redirected.
 export GH_FORCE_TTY=1
 
+# Assign 'GH_NOTIFY_DEBUG_MODE' with 'true' to see more information
+export GH_NOTIFY_DEBUG_MODE=${GH_NOTIFY_DEBUG_MODE:-false}
+if $GH_NOTIFY_DEBUG_MODE; then
+    export gh_notify_debug_log="${BASH_SOURCE%/*}/gh_notify_debug.log"
+
+    # Tell the user where we saved the debug information
+    trap 'echo [DEBUG] $gh_notify_debug_log' EXIT
+
+    # Clear the file on every run
+    : >"$gh_notify_debug_log"
+
+    # Unset GH_FORCE_TTY to avoid unnecessary color codes in the debug file
+    unset GH_FORCE_TTY
+
+    # Redirect stdout and stderr to the terminal and a file
+    exec &> >(tee -a "$gh_notify_debug_log")
+
+    # [DISABLED] 'GH_DEBUG' sends the output to file descriptor 2, but these error messages can be
+    # caught by adding '2>&5' to all gh api calls, but this would also hide the actual error message
+    # from a failed gh api call. It would be great to have an actual environment variable like
+    # 'BASH_XTRACEFD' to set the desired file descriptor for the verbose output of GH_DEBUG
+
+    # 'GH_DEBUG' is useful for determining why a call to the GitHub API might have failed
+    # export GH_DEBUG=api
+    # Redirect possible errors and debug information from 'gh api' calls to a file
+    # exec 5> >(tee -a "$gh_notify_debug_log")
+
+    # Redirect xtrace output to a file
+    exec 6>>"$gh_notify_debug_log"
+    # Write the trace output to file descriptor 6
+    export BASH_XTRACEFD=6
+    # More verbose execution trace prompt
+    export PS4='+$(date +%Y-%m-%d:%H:%M:%S) ${FUNCNAME[0]:-}:L${LINENO:-}:  '
+    set -o xtrace
+fi
 # 'SHLVL' variable represents the nesting level of the current shell
 export NESTED_START_LVL="$SHLVL"
 export FINAL_MSG='All caught up!'
@@ -269,6 +297,7 @@ process_page() {
 # Returns: a number and optionally a new type, or raises an error for release types
 process_url() {
     local type="$1" url="$2"
+    local number prerelease
     if grep -q "Commit" <<<"$type"; then
         basename "$url" | head -c 7
     elif grep -q "Release" <<<"$type"; then
@@ -276,7 +305,7 @@ process_url() {
             --cache=100h \
             --header "$GH_REST_API_VERSION" \
             --method GET \
-            --jq '[.tag_name, .prerelease] | @tsv' 2>/dev/null); then
+            --jq '[.tag_name, .prerelease] | @tsv'); then
             if "$prerelease"; then
                 echo "$number Pre-release"
             else
@@ -514,7 +543,7 @@ update_subscription() {
     if IFS=$'\t' read -r object_type node_id viewer_can_subscribe viewer_subscription < <(gh api graphql \
         --raw-field url_input="$update_subscription_url" \
         --raw-field query="$graphql_query_resource" \
-        --jq '.data.resource | map(.) | @tsv' 2>/dev/null); then
+        --jq '.data.resource | map(.) | @tsv'); then
         if [[ -z $object_type ]]; then
             die "Your input appears to be an invalid URL: '$update_subscription_url'."
         elif [[ $viewer_subscription != "SUBSCRIBED" && ! $viewer_can_subscribe ]]; then
