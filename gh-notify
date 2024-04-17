@@ -146,8 +146,14 @@ EOF
 
 while getopts 'e:f:n:u:pawhsr' flag; do
     case "${flag}" in
-        e) exclusion_string="${OPTARG}" ;;
-        f) filter_string="${OPTARG}" ;;
+        e)
+            FINAL_MSG="No results found."
+            exclusion_string="${OPTARG}"
+            ;;
+        f)
+            FINAL_MSG="No results found."
+            filter_string="${OPTARG}"
+            ;;
         n) num_notifications="${OPTARG}" ;;
         p) only_participating_flag=true ;;
         u) update_subscription_url="${OPTARG}" ;;
