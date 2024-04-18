@@ -245,10 +245,10 @@ print_notifs() {
     while :; do
         local_page_size=$((total_requested - fetched_count > GH_NOTIFY_PER_PAGE_LIMIT ? \
             GH_NOTIFY_PER_PAGE_LIMIT : total_requested - fetched_count))
-        # "marching ants" because sometimes this takes a bit.
-        printf >&2 "."
         page=$(get_notifs "$page_num") || die "Failed to get notifications."
         [[ -z $page ]] && break
+        # Print "marching ants" after `get_notifs` to indicate progress.
+        printf >&2 "."
 
         page_num=$((page_num + 1))
         # On each run, we can fetch up to 50 notifications. If a user requested 56, we can't specify
