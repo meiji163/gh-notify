@@ -175,9 +175,6 @@ done
 
 get_notifs() {
     local page_num="$1"
-
-    # "marching ants" because sometimes this takes a bit.
-    printf >&2 "."
     command gh api --header "$GH_REST_API_VERSION" --method GET notifications --cache=0s \
         --field per_page="$GH_NOTIFY_PER_PAGE_LIMIT" --field page="$page_num" \
         --field participating="$only_participating_flag" --field all="$include_all_flag" \
@@ -244,9 +241,12 @@ print_notifs() {
     local total_requested="$num_notifications" # Total number of notifications requested
     local fetched_count=0                      # A counter for the number of fetched notifications
     local all_notifs=""
+
     while :; do
         local_page_size=$((total_requested - fetched_count > GH_NOTIFY_PER_PAGE_LIMIT ? \
             GH_NOTIFY_PER_PAGE_LIMIT : total_requested - fetched_count))
+        # "marching ants" because sometimes this takes a bit.
+        printf >&2 "."
         page=$(get_notifs "$page_num") || die "Failed to get notifications."
         [[ -z $page ]] && break
 
