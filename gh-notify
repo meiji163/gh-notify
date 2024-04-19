@@ -127,7 +127,7 @@ ${WHITE_BOLD}Key Bindings fzf${NC}
 
 ${WHITE_BOLD}Table Format${NC}
   ${GREEN}unread symbol${NC}  indicates unread status
-  ${GREEN}time         ${NC}  last read (unread \u25cf) otherwise update time
+  ${GREEN}time         ${NC}  time of last read for unread; otherwise, time of last update
   ${GREEN}repo         ${NC}  related repository
   ${GREEN}type         ${NC}  notification type
   ${GREEN}number       ${NC}  associated number
@@ -620,7 +620,7 @@ update_subscription() {
 gh_notify() {
     local python_version notifs
 
-    if ! command -v command gh >/dev/null; then
+    if ! command -v gh >/dev/null; then
         die "install 'gh'"
     fi
 
