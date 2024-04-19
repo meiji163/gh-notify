@@ -318,7 +318,7 @@ process_url() {
     local type="$1" url="$2"
     local number prerelease
     if command grep -q "Commit" <<<"$type"; then
-        basename "$url" | command head -c 7
+        command basename "$url" | command head -c 7
     elif command grep -q "Release" <<<"$type"; then
         if IFS=$'\t' read -r number prerelease < <(command gh api "$url" \
             --cache=100h \
@@ -360,15 +360,18 @@ process_discussion() {
 }
 
 highlight_output() {
+    local bat_cmd
     if command -v delta >/dev/null; then
         # https://dandavison.github.io/delta
         command delta --width "${FZF_PREVIEW_COLUMNS:-${COLUMNS:-100}}" --paging=never
-    elif command -v bat >/dev/null; then
-        # https://github.com/sharkdp/bat
-        command bat --color=always --plain --language diff --no-pager \
-            --terminal-width="${FZF_PREVIEW_COLUMNS:-${COLUMNS:-100}}"
     else
-        command cat
+        # Resolve 'bat' command (could be installed as 'bat' or 'batcat' depends on the OS)
+        if bat_cmd=$(command -v bat || command -v batcat); then
+            command $bat_cmd --color=always --plain --language diff --no-pager \
+                --terminal-width="${FZF_PREVIEW_COLUMNS:-${COLUMNS:-100}}"
+        else
+            command cat
+        fi
     fi
 }
 
