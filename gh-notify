@@ -318,7 +318,8 @@ process_url() {
     local type="$1" url="$2"
     local number prerelease
     if command grep -q "Commit" <<<"$type"; then
-        command basename "$url" | command head -c 7
+        # https://blog.cuviper.com/2013/11/10/how-short-can-git-abbreviate/
+        command basename "$url" | command head -c 12
     elif command grep -q "Release" <<<"$type"; then
         if IFS=$'\t' read -r number prerelease < <(command gh api "$url" \
             --cache=100h \
