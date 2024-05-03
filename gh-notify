@@ -457,7 +457,7 @@ view_in_pager() {
     IFS=' ' read -r _ _ _ _ repo_full_name _ _ _ _ type number _ <<<"$1"
     declare -a less_args
     # The long option (--+…) for resetting the option to its default setting is broken in less
-    # version 643, so only use the short version. Ref: https://github.com/gwsw/less/issues/452
+    # version 643, so use only the short version. Ref: https://github.com/gwsw/less/issues/452
     less_args=(
         "--clear-screen"      # to be painted from the top line down
         "--RAW-CONTROL-CHARS" # Raw color codes in output (don't remove color codes)
@@ -465,7 +465,7 @@ view_in_pager() {
         "-+X"                 # reset screen clearing prevention
     )
 
-    # move only to the end of the file for issues/prs with comments
+    # Move to the end of the file only for Issues or PRs that have comments.
     case "$type" in
         Issue | PullRequest)
             unhashed_num=$(command tr -d "#" <<<"$number")
