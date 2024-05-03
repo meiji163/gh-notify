@@ -8,8 +8,7 @@ set -o errexit -o nounset -o pipefail
 # NotificationReason:
 # assign, author, comment, invitation, manual, mention, review_requested, security_alert, state_change, subscribed, team_mention, ci_activity
 # NotificationSubjectTypes:
-# CheckSuite, Commit, Discussion, Issue, PullRequest, Release,
-# RepositoryVulnerabilityAlert, ...
+# CheckSuite, Commit, Discussion, Issue, PullRequest, Release, RepositoryVulnerabilityAlert, ...
 
 # ====================== set variables =======================
 
@@ -189,9 +188,13 @@ done
 
 # ===================== helper functions ==========================
 
+gh_rest_api() {
+    command gh api --header "$GH_REST_API_VERSION" --method GET --cache=0s "$@"
+}
+
 get_notifs() {
     local page_num="$1"
-    command gh api --header "$GH_REST_API_VERSION" --method GET notifications --cache=0s \
+    gh_rest_api notifications \
         --field per_page="$GH_NOTIFY_PER_PAGE_LIMIT" --field page="$page_num" \
         --field participating="$only_participating_flag" --field all="$include_all_flag" \
         --jq \
@@ -337,11 +340,8 @@ process_url() {
         # https://blog.cuviper.com/2013/11/10/how-short-can-git-abbreviate/
         command basename "$url" | command head -c 12
     elif command grep -q "Release" <<<"$type"; then
-        if IFS=$'\t' read -r number prerelease < <(command gh api "$url" \
-            --cache=100h \
-            --header "$GH_REST_API_VERSION" \
-            --method GET \
-            --jq '[.tag_name, .prerelease] | @tsv'); then
+        if IFS=$'\t' read -r number prerelease < <(gh_rest_api "$url" \
+            --cache=100h --jq '[.tag_name, .prerelease] | @tsv'); then
             if "$prerelease"; then
                 echo "$number Pre-release"
             else
@@ -424,7 +424,7 @@ open_in_browser() {
 
 view_notification() {
     local all_comments date time repo_full_name type number
-    if [ "$1" = "--all_comments" ]; then
+    if [[ $1 == "--all_comments" ]]; then
         shift
         all_comments="1"
     fi
@@ -432,8 +432,8 @@ view_notification() {
     printf "[%s %s - %s]\n" "$date" "$time" "$type"
     case "$type" in
         Commit)
-            command gh api --header "$GH_REST_API_VERSION" --cache=24h \
-                --method GET "repos/$repo_full_name/commits/$number" --jq '.files[].patch' | highlight_output
+            gh_rest_api --cache=24h "repos/$repo_full_name/commits/$number" \
+                --jq '.files[].patch' | highlight_output
             ;;
         Issue)
             # use the '--comments' flag only if 'all_comments' exists and is not null
@@ -452,8 +452,9 @@ view_notification() {
 }
 
 view_in_pager() {
-    local type
-    IFS=' ' read -r _ _ _ _ _ _ _ _ _ type _ <<<"$1"
+    local repo_full_name type number unhashed_num total_comments
+    local issue_or_pr="issues"
+    IFS=' ' read -r _ _ _ _ repo_full_name _ _ _ _ type number _ <<<"$1"
     declare -a less_args
     # The long option (--+…) for resetting the option to its default setting is broken in less
     # version 643, so only use the short version. Ref: https://github.com/gwsw/less/issues/452
@@ -463,11 +464,22 @@ view_in_pager() {
         "-+F"                 # disable exiting if the entire file can be displayed on the screen
         "-+X"                 # reset screen clearing prevention
     )
+
+    # move only to the end of the file for issues/prs with comments
     case "$type" in
         Issue | PullRequest)
-            less_args+=(
-                "+G" # start at the end of the file
-            )
+            unhashed_num=$(command tr -d "#" <<<"$number")
+            [[ $type == "PullRequest" ]] && issue_or_pr="pulls"
+
+            if total_comments=$(gh_rest_api \
+                "repos/${repo_full_name}/${issue_or_pr}/${unhashed_num}/comments" \
+                --jq 'length' 2>/dev/null); then
+                if ((total_comments > 0)); then
+                    less_args+=(
+                        "+G" # start at the end of the file
+                    )
+                fi
+            fi
             ;;
     esac
 
@@ -480,25 +492,24 @@ mark_all_read() {
     local iso_time
     IFS=' ' read -r iso_time _ <<<"$1"
     # https://docs.github.com/en/rest/activity/notifications#mark-notifications-as-read
-    command gh api --silent --header "$GH_REST_API_VERSION" --method PUT notifications \
+    gh_rest_api --silent --method PUT notifications \
         --raw-field last_read_at="$iso_time" --field read=true
 }
 
 mark_individual_read() {
     local thread_id thread_state
     IFS=' ' read -r _ thread_id thread_state _ <<<"$1"
-    if [ "$thread_state" = "UNREAD" ]; then
-        command gh api --silent --header "$GH_REST_API_VERSION" --method PATCH "notifications/threads/${thread_id}"
+    if [[ $thread_state == "UNREAD" ]]; then
+        gh_rest_api --silent --method PATCH "notifications/threads/${thread_id}"
     fi
 }
 
 select_notif() {
     local output expected_key selected_line repo_full_name type num
-    # make functions available in child processes
-    # 'SHELL="$(which bash)"' is needed to use exported functions when the default shell
-    # is not bash
+    # Export functions to child processes. 'fzf' executes commands with $SHELL -c; to ensure
+    # compatibility when the default shell is not bash, set 'SHELL="$(which bash)"'.
     export -f print_help_text print_notifs get_notifs
-    export -f process_page process_discussion process_url
+    export -f process_page process_discussion process_url gh_rest_api
     export -f highlight_output open_in_browser view_notification view_in_pager
     export -f mark_all_read mark_individual_read
     # The 'die' function is not exported because 'fzf' warns you about the error in
@@ -557,7 +568,8 @@ select_notif() {
                 command gh issue comment "$num" --repo "$repo_full_name"
                 mark_individual_read "$selected_line" || die "Failed to mark the notification as read."
             else
-                printf "Writing comments is only supported for %bIssues%b and %bPullRequests%b.\n" "$WHITE_BOLD" "$NC" "$WHITE_BOLD" "$NC"
+                printf "Writing comments is only supported for %bIssues%b and %bPullRequests%b.\n" \
+                    "$WHITE_BOLD" "$NC" "$WHITE_BOLD" "$NC"
                 exit 1
             fi
             ;;
@@ -675,7 +687,7 @@ gh_notify() {
                 break
             fi
         done
-        if [ -z "$python_executable" ]; then
+        if [[ -z $python_executable ]]; then
             die "install 'python' or use the -s flag"
         fi
 
@@ -687,7 +699,7 @@ gh_notify() {
     fi
 
     notifs="$(print_notifs)"
-    if [ -z "$notifs" ]; then
+    if [[ -z $notifs ]]; then
         echo "$FINAL_MSG"
         exit 0
     elif ! $print_static_flag; then
