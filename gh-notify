@@ -42,7 +42,7 @@ export GH_NOTIFY_PER_PAGE_LIMIT=50
 # Assign 'GH_NOTIFY_DEBUG_MODE' with 'true' to see more information
 export GH_NOTIFY_DEBUG_MODE=${GH_NOTIFY_DEBUG_MODE:-false}
 if $GH_NOTIFY_DEBUG_MODE; then
-    export gh_notify_debug_log="${BASH_SOURCE%/*}/gh_notify_debug.log"
+    export gh_notify_debug_log="${BASH_SOURCE[0]%/*}/gh_notify_debug.log"
 
     # Tell the user where we saved the debug information
     trap 'echo [DEBUG] $gh_notify_debug_log' EXIT
@@ -52,9 +52,6 @@ if $GH_NOTIFY_DEBUG_MODE; then
 
     # Unset GH_FORCE_TTY to avoid unnecessary color codes in the debug file
     unset GH_FORCE_TTY
-
-    # Redirect stdout and stderr to the terminal and a file
-    exec &> >(tee -a "$gh_notify_debug_log")
 
     # [DISABLED] 'GH_DEBUG' sends the output to file descriptor 2, but these error messages can be
     # caught by adding '2>&5' to all gh api calls, but this would also hide the actual error message
