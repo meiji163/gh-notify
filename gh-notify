@@ -473,8 +473,8 @@ view_in_pager() {
             [[ $type == "PullRequest" ]] && issue_or_pr="pulls"
 
             if total_comments=$(gh_rest_api \
-                "repos/${repo_full_name}/${issue_or_pr}/${unhashed_num}/comments" \
-                --jq 'length' 2>/dev/null); then
+                "repos/${repo_full_name}/${issue_or_pr}/${unhashed_num}" \
+                --jq '.comments' 2>/dev/null); then
                 if ((total_comments > 0)); then
                     less_args+=(
                         "+G" # start at the end of the file
