@@ -53,6 +53,10 @@ if $GH_NOTIFY_DEBUG_MODE; then
     # Unset GH_FORCE_TTY to avoid unnecessary color codes in the debug file
     unset GH_FORCE_TTY
 
+    # Redirect stdout and stderr to the terminal and a file, in fzf 0.52.0+ the UI is no longer
+    # written to stderr: https://github.com/junegunn/fzf/discussions/3792
+    exec &> >(tee -a "$gh_notify_debug_log")
+
     # [DISABLED] 'GH_DEBUG' sends the output to file descriptor 2, but these error messages can be
     # caught by adding '2>&5' to all gh api calls, but this would also hide the actual error message
     # from a failed gh api call. It would be great to have an actual environment variable like
