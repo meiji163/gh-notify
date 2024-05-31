@@ -211,7 +211,15 @@ get_notifs() {
         def colored(text; color):
             colors[color] + text + colors.reset;
         .[] | {
-            updated_short: .updated_at | fromdateiso8601 | strftime("%Y-%m"),
+            updated_short:
+                # for some reason ".updated_at" can be null
+                if .updated_at then
+                    .updated_at | fromdateiso8601 | strftime("%Y-%m")
+                else
+                    # Github Discussion launched in 2020
+                    # https://resources.github.com/devops/process/planning/discussions/
+                    "2020"
+                end,
             # UTC time ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ
             # https://docs.github.com/en/rest/overview/resources-in-the-rest-api#timezones
             iso8601: now | strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -221,15 +229,21 @@ get_notifs() {
             repo_full_name: .repository.full_name,
             unread_symbol: colored((if .unread then "\u25cf" else "\u00a0" end); "magenta"),
             # make sure each outcome has an equal number of fields separated by spaces
-            timefmt: colored(((if .unread then .last_read_at // .updated_at else .updated_at end) | fromdateiso8601) as $time_sec |
-                # difference is less than one hour
-                if ((now - $time_sec) / 3600) < 1 then
-                    (now - $time_sec) / 60 | floor | tostring + "min ago"
-                # difference is less than 24 hours
-                elif ((now - $time_sec) / 3600) < 24 then
-                    (now - $time_sec) / 3600 | floor | tostring + "h ago"
+            timefmt: colored(
+                # for some reason ".updated_at" can be null
+                if (.unread and .last_read_at) or .updated_at then
+                    ((if .unread then .last_read_at // .updated_at else .updated_at end) | fromdateiso8601) as $time_sec |
+                    # difference is less than one hour
+                    if ((now - $time_sec) / 3600) < 1 then
+                        (now - $time_sec) / 60 | floor | tostring + "min ago"
+                    # difference is less than 24 hours
+                    elif ((now - $time_sec) / 3600) < 24 then
+                        (now - $time_sec) / 3600 | floor | tostring + "h ago"
+                    else
+                        $time_sec | strflocaltime("%d/%b %H:%M")
+                    end
                 else
-                    $time_sec | strflocaltime("%d/%b %H:%M")
+                    "Not available"
                 end; "gray"),
             owner_abbreviated: colored(
                 if (.repository.owner.login | length) > 10 then
