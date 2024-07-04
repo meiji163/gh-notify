@@ -387,7 +387,7 @@ process_discussion() {
     command gh api graphql \
         --cache=100h \
         --raw-field query="$graphql_query_discussion" \
-        --raw-field filter="$title in:title updated:>=$updated_short repo:$repo_full_name" \
+        --raw-field filter="\"$title\" in:title updated:>=$updated_short repo:$repo_full_name" \
         --jq '.data.search.nodes | "#\(.[].number)"' || die "Failed GraphQL discussion query."
 }
 
