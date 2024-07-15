@@ -48,21 +48,21 @@ gh notify [Flags]
 
 ### Key Bindings fzf
 
-| Keys                           | Description                                         |
-| ------------------------------ | --------------------------------------------------- |
-| <kbd>?</kbd>                   | toggle help                                         |
-| <kbd>enter</kbd>               | view the selected notification in the 'less' pager  |
-| <kbd>tab</kbd>                 | toggle notification preview                         |
-| <kbd>shift</kbd><kbd>tab</kbd> | resize the preview window                           |
-| <kbd>shift</kbd><kbd>↑↓</kbd>  | scroll the preview up/ down                         |
-| <kbd>ctrl</kbd><kbd>a</kbd>    | mark all displayed notifications as read and reload |
-| <kbd>ctrl</kbd><kbd>b</kbd>    | browser                                             |
-| <kbd>ctrl</kbd><kbd>d</kbd>    | view diff                                           |
-| <kbd>ctrl</kbd><kbd>p</kbd>    | view diff in patch format                           |
-| <kbd>ctrl</kbd><kbd>r</kbd>    | reload                                              |
-| <kbd>ctrl</kbd><kbd>t</kbd>    | mark the selected notification as read and reload   |
-| <kbd>ctrl</kbd><kbd>x</kbd>    | write a comment with the editor and quit            |
-| <kbd>esc</kbd>                 | quit                                                |
+| Keys                           | Description                                         | Customization Environment Variable      |
+| ------------------------------ | --------------------------------------------------- | --------------------------------------- |
+| <kbd>?</kbd>                   | toggle help                                         | <kbd>GH_NOTIFY_TOGGLE_HELP_KEY</kbd>    |
+| <kbd>enter</kbd>               | view the selected notification in the 'less' pager  | <kbd>GH_NOTIFY_VIEW_KEY</kbd>           |
+| <kbd>tab</kbd>                 | toggle notification preview                         | <kbd>GH_NOTIFY_TOGGLE_PREVIEW_KEY</kbd> |
+| <kbd>shift</kbd><kbd>tab</kbd> | resize the preview window                           | <kbd>GH_NOTIFY_RESIZE_PREVIEW_KEY</kbd> |
+| <kbd>shift</kbd><kbd>↑↓</kbd>  | scroll the preview up/ down                         |                                         |
+| <kbd>ctrl</kbd><kbd>a</kbd>    | mark all displayed notifications as read and reload | <kbd>GH_NOTIFY_MARK_ALL_READ_KEY</kbd>  |
+| <kbd>ctrl</kbd><kbd>b</kbd>    | browser                                             | <kbd>GH_NOTIFY_OPEN_BROWSER_KEY</kbd>   |
+| <kbd>ctrl</kbd><kbd>d</kbd>    | view diff                                           | <kbd>GH_NOTIFY_VIEW_DIFF_KEY</kbd>      |
+| <kbd>ctrl</kbd><kbd>p</kbd>    | view diff in patch format                           | <kbd>GH_NOTIFY_VIEW_PATCH_KEY</kbd>     |
+| <kbd>ctrl</kbd><kbd>r</kbd>    | reload                                              | <kbd>GH_NOTIFY_RELOAD_KEY</kbd>         |
+| <kbd>ctrl</kbd><kbd>t</kbd>    | mark the selected notification as read and reload   | <kbd>GH_NOTIFY_MARK_READ_KEY</kbd>      |
+| <kbd>ctrl</kbd><kbd>x</kbd>    | write a comment with the editor and quit            | <kbd>GH_NOTIFY_COMMENT_KEY</kbd>        |
+| <kbd>esc</kbd>                 | quit                                                |                                         |
 
 ### Table Format
 
