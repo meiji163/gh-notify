@@ -22,6 +22,22 @@ export GH_REST_API_VERSION="X-GitHub-Api-Version:2022-11-28"
 # Enable terminal-style output even when the output is redirected.
 export GH_FORCE_TTY=1
 
+# Need to be exported because of its use in the 'print_help_text' function
+set -o allexport
+# Customize the fzf keys using environment variables
+: "${GH_NOTIFY_MARK_ALL_READ_KEY:=ctrl-a}"
+: "${GH_NOTIFY_OPEN_BROWSER_KEY:=ctrl-b}"
+: "${GH_NOTIFY_VIEW_DIFF_KEY:=ctrl-d}"
+: "${GH_NOTIFY_VIEW_PATCH_KEY:=ctrl-p}"
+: "${GH_NOTIFY_RELOAD_KEY:=ctrl-r}"
+: "${GH_NOTIFY_MARK_READ_KEY:=ctrl-t}"
+: "${GH_NOTIFY_COMMENT_KEY:=ctrl-x}"
+: "${GH_NOTIFY_RESIZE_PREVIEW_KEY:=btab}"
+: "${GH_NOTIFY_VIEW_KEY:=enter}"
+: "${GH_NOTIFY_TOGGLE_PREVIEW_KEY:=tab}"
+: "${GH_NOTIFY_TOGGLE_HELP_KEY:=?}"
+set +o allexport
+
 # The maximum number of notifications per page (set by GitHub)
 export GH_NOTIFY_PER_PAGE_LIMIT=50
 # Assign 'GH_NOTIFY_DEBUG_MODE' with 'true' to see more information
@@ -111,18 +127,18 @@ ${WHITE_BOLD}Flags${NC}
   ${GREEN}-w    ${NC}  display the preview window in interactive mode
 
 ${WHITE_BOLD}Key Bindings fzf${NC}
-  ${GREEN}?        ${NC}  toggle help
-  ${GREEN}enter    ${NC}  view the selected notification in the 'less' pager
-  ${GREEN}tab      ${NC}  toggle notification preview
-  ${GREEN}shift+tab${NC}  resize the preview window
+  ${GREEN}${GH_NOTIFY_TOGGLE_HELP_KEY}        ${NC}  toggle help
+  ${GREEN}${GH_NOTIFY_VIEW_KEY}    ${NC}  view the selected notification in the 'less' pager
+  ${GREEN}${GH_NOTIFY_TOGGLE_PREVIEW_KEY}      ${NC}  toggle notification preview
+  ${GREEN}${GH_NOTIFY_RESIZE_PREVIEW_KEY}${NC}       resize the preview window
   ${GREEN}shift+↑↓ ${NC}  scroll the preview up/ down
-  ${GREEN}ctrl+a   ${NC}  mark all displayed notifications as read and reload
-  ${GREEN}ctrl+b   ${NC}  browser
-  ${GREEN}ctrl+d   ${NC}  view diff
-  ${GREEN}ctrl+p   ${NC}  view diff in patch format
-  ${GREEN}ctrl+r   ${NC}  reload
-  ${GREEN}ctrl+t   ${NC}  mark the selected notification as read and reload
-  ${GREEN}ctrl+x   ${NC}  write a comment with the editor and quit
+  ${GREEN}${GH_NOTIFY_MARK_ALL_READ_KEY}   ${NC}  mark all displayed notifications as read and reload
+  ${GREEN}${GH_NOTIFY_OPEN_BROWSER_KEY}   ${NC}  browser
+  ${GREEN}${GH_NOTIFY_VIEW_DIFF_KEY}   ${NC}  view diff
+  ${GREEN}${GH_NOTIFY_VIEW_PATCH_KEY}   ${NC}  view diff in patch format
+  ${GREEN}${GH_NOTIFY_RELOAD_KEY}   ${NC}  reload
+  ${GREEN}${GH_NOTIFY_MARK_READ_KEY}   ${NC}  mark the selected notification as read and reload
+  ${GREEN}${GH_NOTIFY_COMMENT_KEY}   ${NC}  write a comment with the editor and quit
   ${GREEN}esc      ${NC}  quit
 
 ${WHITE_BOLD}Table Format${NC}
@@ -481,24 +497,24 @@ select_notif() {
     output=$(
         SHELL="$(which bash)" command fzf \
             --ansi \
-            --bind "btab:change-preview-window(75%:nohidden|75%:down:nohidden:border-top|nohidden)" \
+            --bind "${GH_NOTIFY_RESIZE_PREVIEW_KEY}:change-preview-window(75%:nohidden|75%:down:nohidden:border-top|nohidden)" \
             --bind "change:first" \
-            --bind "ctrl-a:execute-silent(mark_all_read {})+reload:print_notifs || true" \
-            --bind "ctrl-b:execute-silent:open_in_browser {}" \
-            --bind "ctrl-d:toggle-preview+change-preview:if command grep -q PullRequest <<<{10}; then command gh pr diff {11} --repo {5}  | highlight_output; else view_notification {}; fi" \
-            --bind "ctrl-p:toggle-preview+change-preview:if command grep -q PullRequest <<<{10}; then command gh pr diff {11} --patch --repo {5} | highlight_output; else view_notification {}; fi" \
-            --bind "ctrl-r:reload:print_notifs || true" \
-            --bind "ctrl-t:execute-silent(mark_individual_read {})+reload:print_notifs || true" \
-            --bind "enter:execute:view_notification --all_comments {} | less ${less_args[*]} >/dev/tty" \
-            --bind "tab:toggle-preview+change-preview:view_notification {}" \
-            --bind "?:toggle-preview+change-preview:print_help_text" \
+            --bind "${GH_NOTIFY_MARK_ALL_READ_KEY}:execute-silent(mark_all_read {})+reload:print_notifs || true" \
+            --bind "${GH_NOTIFY_OPEN_BROWSER_KEY}:execute-silent:open_in_browser {}" \
+            --bind "${GH_NOTIFY_VIEW_DIFF_KEY}:toggle-preview+change-preview:if command grep -q PullRequest <<<{10}; then command gh pr diff {11} --repo {5}  | highlight_output; else view_notification {}; fi" \
+            --bind "${GH_NOTIFY_VIEW_PATCH_KEY}:toggle-preview+change-preview:if command grep -q PullRequest <<<{10}; then command gh pr diff {11} --patch --repo {5} | highlight_output; else view_notification {}; fi" \
+            --bind "${GH_NOTIFY_RELOAD_KEY}:reload:print_notifs || true" \
+            --bind "${GH_NOTIFY_MARK_READ_KEY}:execute-silent(mark_individual_read {})+reload:print_notifs || true" \
+            --bind "${GH_NOTIFY_VIEW_KEY}:execute:view_notification --all_comments {} | less ${less_args[*]} >/dev/tty" \
+            --bind "${GH_NOTIFY_TOGGLE_PREVIEW_KEY}:toggle-preview+change-preview:view_notification {}" \
+            --bind "${GH_NOTIFY_TOGGLE_HELP_KEY}:toggle-preview+change-preview:print_help_text" \
             --border horizontal \
             --color "border:dim" \
             --color "header:green:italic:dim" \
             --color "prompt:80,info:40" \
             --delimiter '\s+' \
-            --expect "esc,ctrl-x" \
-            --header "? help · esc quit" \
+            --expect "esc,${GH_NOTIFY_COMMENT_KEY}" \
+            --header "${GH_NOTIFY_TOGGLE_HELP_KEY} help · esc quit" \
             --info=inline \
             --no-multi \
             --pointer="▶" \
@@ -522,7 +538,7 @@ select_notif() {
             # quit with exit code 0; 'fzf' returns 130 by default
             exit 0
             ;;
-        ctrl-x)
+        "${GH_NOTIFY_COMMENT_KEY}")
             if command grep -qE "Issue|PullRequest" <<<"$type"; then
                 command gh issue comment "$num" --repo "$repo_full_name"
                 mark_individual_read "$selected_line" || die "Failed to mark the notification as read."
