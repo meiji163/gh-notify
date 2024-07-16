@@ -48,21 +48,21 @@ gh notify [Flags]
 
 ### Key Bindings fzf
 
-| Keys                           | Description                                         | Customization Environment Variable      |
-| ------------------------------ | --------------------------------------------------- | --------------------------------------- |
-| <kbd>?</kbd>                   | toggle help                                         | <kbd>GH_NOTIFY_TOGGLE_HELP_KEY</kbd>    |
-| <kbd>enter</kbd>               | view the selected notification in the 'less' pager  | <kbd>GH_NOTIFY_VIEW_KEY</kbd>           |
-| <kbd>tab</kbd>                 | toggle notification preview                         | <kbd>GH_NOTIFY_TOGGLE_PREVIEW_KEY</kbd> |
-| <kbd>shift</kbd><kbd>tab</kbd> | resize the preview window                           | <kbd>GH_NOTIFY_RESIZE_PREVIEW_KEY</kbd> |
-| <kbd>shift</kbd><kbd>↑↓</kbd>  | scroll the preview up/ down                         |                                         |
-| <kbd>ctrl</kbd><kbd>a</kbd>    | mark all displayed notifications as read and reload | <kbd>GH_NOTIFY_MARK_ALL_READ_KEY</kbd>  |
-| <kbd>ctrl</kbd><kbd>b</kbd>    | browser                                             | <kbd>GH_NOTIFY_OPEN_BROWSER_KEY</kbd>   |
-| <kbd>ctrl</kbd><kbd>d</kbd>    | view diff                                           | <kbd>GH_NOTIFY_VIEW_DIFF_KEY</kbd>      |
-| <kbd>ctrl</kbd><kbd>p</kbd>    | view diff in patch format                           | <kbd>GH_NOTIFY_VIEW_PATCH_KEY</kbd>     |
-| <kbd>ctrl</kbd><kbd>r</kbd>    | reload                                              | <kbd>GH_NOTIFY_RELOAD_KEY</kbd>         |
-| <kbd>ctrl</kbd><kbd>t</kbd>    | mark the selected notification as read and reload   | <kbd>GH_NOTIFY_MARK_READ_KEY</kbd>      |
-| <kbd>ctrl</kbd><kbd>x</kbd>    | write a comment with the editor and quit            | <kbd>GH_NOTIFY_COMMENT_KEY</kbd>        |
-| <kbd>esc</kbd>                 | quit                                                |                                         |
+| Keys                           | Description                                         | Customization Environment Variable |
+| ------------------------------ | --------------------------------------------------- | ---------------------------------- |
+| <kbd>?</kbd>                   | toggle help                                         | `GH_NOTIFY_TOGGLE_HELP_KEY`        |
+| <kbd>enter</kbd>               | view the selected notification in the 'less' pager  | `GH_NOTIFY_VIEW_KEY`               |
+| <kbd>tab</kbd>                 | toggle notification preview                         | `GH_NOTIFY_TOGGLE_PREVIEW_KEY`     |
+| <kbd>shift</kbd><kbd>tab</kbd> | resize the preview window                           | `GH_NOTIFY_RESIZE_PREVIEW_KEY`     |
+| <kbd>shift</kbd><kbd>↑↓</kbd>  | scroll the preview up/ down                         |                                    |
+| <kbd>ctrl</kbd><kbd>a</kbd>    | mark all displayed notifications as read and reload | `GH_NOTIFY_MARK_ALL_READ_KEY`      |
+| <kbd>ctrl</kbd><kbd>b</kbd>    | browser                                             | `GH_NOTIFY_OPEN_BROWSER_KEY`       |
+| <kbd>ctrl</kbd><kbd>d</kbd>    | view diff                                           | `GH_NOTIFY_VIEW_DIFF_KEY`          |
+| <kbd>ctrl</kbd><kbd>p</kbd>    | view diff in patch format                           | `GH_NOTIFY_VIEW_PATCH_KEY`         |
+| <kbd>ctrl</kbd><kbd>r</kbd>    | reload                                              | `GH_NOTIFY_RELOAD_KEY`             |
+| <kbd>ctrl</kbd><kbd>t</kbd>    | mark the selected notification as read and reload   | `GH_NOTIFY_MARK_READ_KEY`          |
+| <kbd>ctrl</kbd><kbd>x</kbd>    | write a comment with the editor and quit            | `GH_NOTIFY_COMMENT_KEY`            |
+| <kbd>esc</kbd>                 | quit                                                |                                    |
 
 ### Table Format
 
@@ -98,6 +98,19 @@ export FZF_DEFAULT_OPTS="
 --bind 'alt-u:first,alt-d:last'
 --bind 'alt-r:refresh-preview'
 --bind 'ctrl-w:preview-half-page-up,ctrl-s:preview-half-page-down'"
+```
+
+You can also customize the keybindings created by this extension to avoid conflicts with
+the ones defined by `fzf`. For example, change `ctrl-p` to `ctrl-u`:
+
+```sh
+GH_NOTIFY_VIEW_PATCH_KEY="ctrl-u" gh notify
+```
+
+**NOTE:** The assigned key must be a valid key listed in the `fzf` man page:
+
+```sh
+man --pager='less -p "^\s+AVAILABLE_KEYS"' fzf
 ```
 
 ### GitHub Command Line Tool (gh)
