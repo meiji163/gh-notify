@@ -22,6 +22,8 @@ export GH_REST_API_VERSION="X-GitHub-Api-Version:2022-11-28"
 # Enable terminal-style output even when the output is redirected.
 export GH_FORCE_TTY=1
 
+# Need to be exported because of its use in the 'print_help_text' function
+set -o allexport
 # Customize the fzf keys using environment variables
 : "${GH_NOTIFY_MARK_ALL_READ_KEY:=ctrl-a}"
 : "${GH_NOTIFY_OPEN_BROWSER_KEY:=ctrl-b}"
@@ -34,12 +36,12 @@ export GH_FORCE_TTY=1
 : "${GH_NOTIFY_VIEW_KEY:=enter}"
 : "${GH_NOTIFY_TOGGLE_PREVIEW_KEY:=tab}"
 : "${GH_NOTIFY_TOGGLE_HELP_KEY:=?}"
+set +o allexport
 
 # The maximum number of notifications per page (set by GitHub)
 export GH_NOTIFY_PER_PAGE_LIMIT=50
 # Assign 'GH_NOTIFY_DEBUG_MODE' with 'true' to see more information
 export GH_NOTIFY_DEBUG_MODE=${GH_NOTIFY_DEBUG_MODE:-false}
-
 if $GH_NOTIFY_DEBUG_MODE; then
     export gh_notify_debug_log="${BASH_SOURCE%/*}/gh_notify_debug.log"
 
