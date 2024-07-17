@@ -513,10 +513,11 @@ mark_all_read() {
 
 mark_individual_read() {
     local thread_id thread_state
-    IFS=' ' read -r _ thread_id thread_state _ <<<"$1"
-    if [[ $thread_state == "UNREAD" ]]; then
-        gh_rest_api --silent --method PATCH "notifications/threads/${thread_id}"
-    fi
+    while IFS=' ' read -r _ thread_id thread_state _; do
+        if [[ $thread_state == "UNREAD" ]]; then
+            gh_rest_api --silent --method PATCH "notifications/threads/${thread_id}"
+        fi
+    done <"$1"
 }
 
 select_notif() {
@@ -539,12 +540,12 @@ select_notif() {
             --ansi \
             --bind "${GH_NOTIFY_RESIZE_PREVIEW_KEY}:change-preview-window(75%:nohidden|75%:down:nohidden:border-top|nohidden)" \
             --bind "change:first" \
-            --bind "${GH_NOTIFY_MARK_ALL_READ_KEY}:execute-silent(mark_all_read {})+reload:print_notifs || true" \
+            --bind "${GH_NOTIFY_MARK_ALL_READ_KEY}:select-all+execute-silent([[ -z {q} ]] && mark_all_read {} ||  mark_individual_read {+f})+reload:print_notifs || true" \
             --bind "${GH_NOTIFY_OPEN_BROWSER_KEY}:execute-silent:open_in_browser {}" \
             --bind "${GH_NOTIFY_VIEW_DIFF_KEY}:toggle-preview+change-preview:if command grep -q PullRequest <<<{10}; then command gh pr diff {11} --repo {5}  | highlight_output; else view_notification {}; fi" \
             --bind "${GH_NOTIFY_VIEW_PATCH_KEY}:toggle-preview+change-preview:if command grep -q PullRequest <<<{10}; then command gh pr diff {11} --patch --repo {5} | highlight_output; else view_notification {}; fi" \
             --bind "${GH_NOTIFY_RELOAD_KEY}:reload:print_notifs || true" \
-            --bind "${GH_NOTIFY_MARK_READ_KEY}:execute-silent(mark_individual_read {})+reload:print_notifs || true" \
+            --bind "${GH_NOTIFY_MARK_READ_KEY}:execute-silent(mark_individual_read {+f})+reload:print_notifs || true" \
             --bind "${GH_NOTIFY_VIEW_KEY}:execute:view_in_pager {}" \
             --bind "${GH_NOTIFY_TOGGLE_PREVIEW_KEY}:toggle-preview+change-preview:view_notification {}" \
             --bind "${GH_NOTIFY_TOGGLE_HELP_KEY}:toggle-preview+change-preview:print_help_text" \
@@ -556,7 +557,7 @@ select_notif() {
             --expect "esc,${GH_NOTIFY_COMMENT_KEY}" \
             --header "${GH_NOTIFY_TOGGLE_HELP_KEY} help · esc quit" \
             --info=inline \
-            --no-multi \
+            --multi \
             --pointer="▶" \
             --preview "view_notification {}" \
             --preview-window "default:wrap:${preview_window_visibility}:60%:right:border-left" \
