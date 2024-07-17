@@ -534,8 +534,10 @@ select_notif() {
     # a failed 'print_notifs' call, but does not display the message.
 
     # See the man page (man fzf) for an explanation of the arguments.
+
     output=$(
-        SHELL="$(which bash)" command fzf \
+        # shellcheck disable=SC2086
+        SHELL="$(which bash)" command fzf ${GH_NOTIFY_FZF_OPTS:-} \
             --ansi \
             --bind "${GH_NOTIFY_RESIZE_PREVIEW_KEY}:change-preview-window(75%:nohidden|75%:down:nohidden:border-top|nohidden)" \
             --bind "change:first" \

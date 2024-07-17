@@ -101,6 +101,17 @@ export FZF_DEFAULT_OPTS="
 --bind 'ctrl-w:preview-half-page-up,ctrl-s:preview-half-page-down'"
 ```
 
+#### GH_NOTIFY_FZF_OPTS
+This environment variable lets you specify additional options and key bindings to customize the
+search and display of notifications. Unlike `FZF_DEFAULT_OPTS`, `GH_NOTIFY_FZF_OPTS` specifically
+applies to the `gh notify` extension.
+
+```sh
+# --exact: Enables exact matching instead of fuzzy matching.
+GH_NOTIFY_FZF_OPTS="--exact" gh notify
+```
+
+#### Modifying Keybindings
 You can also customize the keybindings created by this extension to avoid conflicts with
 the ones defined by `fzf`. For example, change `ctrl-p` to `ctrl-u`:
 
