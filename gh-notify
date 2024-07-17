@@ -31,6 +31,7 @@ set -o allexport
 : "${GH_NOTIFY_RELOAD_KEY:=ctrl-r}"
 : "${GH_NOTIFY_MARK_READ_KEY:=ctrl-t}"
 : "${GH_NOTIFY_COMMENT_KEY:=ctrl-x}"
+: "${GH_NOTIFY_TOGGLE_KEY:=ctrl-y}"
 : "${GH_NOTIFY_RESIZE_PREVIEW_KEY:=btab}"
 : "${GH_NOTIFY_VIEW_KEY:=enter}"
 : "${GH_NOTIFY_TOGGLE_PREVIEW_KEY:=tab}"
@@ -139,6 +140,7 @@ ${WHITE_BOLD}Key Bindings fzf${NC}
   ${GREEN}${GH_NOTIFY_RELOAD_KEY}   ${NC}  reload
   ${GREEN}${GH_NOTIFY_MARK_READ_KEY}   ${NC}  mark the selected notification as read and reload
   ${GREEN}${GH_NOTIFY_COMMENT_KEY}   ${NC}  write a comment with the editor and quit
+  ${GREEN}${GH_NOTIFY_TOGGLE_KEY}   ${NC}  toggle the selected notification
   ${GREEN}esc      ${NC}  quit
 
 ${WHITE_BOLD}Table Format${NC}
@@ -532,9 +534,6 @@ select_notif() {
     # a failed 'print_notifs' call, but does not display the message.
 
     # See the man page (man fzf) for an explanation of the arguments.
-    # '--print-query' and '--delimiter' are not strictly needed here,
-    # but a user could have them in their ‘FZF_DEFAULT_OPTS’
-    # and so the lines would get screwed up and fail if we don't take that into account.
     output=$(
         SHELL="$(which bash)" command fzf \
             --ansi \
@@ -546,6 +545,7 @@ select_notif() {
             --bind "${GH_NOTIFY_VIEW_PATCH_KEY}:toggle-preview+change-preview:if command grep -q PullRequest <<<{10}; then command gh pr diff {11} --patch --repo {5} | highlight_output; else view_notification {}; fi" \
             --bind "${GH_NOTIFY_RELOAD_KEY}:reload:print_notifs || true" \
             --bind "${GH_NOTIFY_MARK_READ_KEY}:execute-silent(mark_individual_read {+f})+reload:print_notifs || true" \
+            --bind "${GH_NOTIFY_TOGGLE_KEY}:toggle+down" \
             --bind "${GH_NOTIFY_VIEW_KEY}:execute:view_in_pager {}" \
             --bind "${GH_NOTIFY_TOGGLE_PREVIEW_KEY}:toggle-preview+change-preview:view_notification {}" \
             --bind "${GH_NOTIFY_TOGGLE_HELP_KEY}:toggle-preview+change-preview:print_help_text" \
@@ -561,17 +561,19 @@ select_notif() {
             --pointer="▶" \
             --preview "view_notification {}" \
             --preview-window "default:wrap:${preview_window_visibility}:60%:right:border-left" \
-            --print-query \
+            --no-print-query \
             --prompt "GitHub Notifications > " \
             --reverse \
             --with-nth 6.. <<<"$1"
     )
     # actions that close fzf are defined below
-    # 1st line ('--print-query'): the input query string
-    # 2nd line ('--expect'): the actual key
-    # 3rd line: the selected line when the user pressed the key
-    expected_key="$(command sed '1d;3d' <<<"$output")"
-    selected_line="$(command sed '1d;2d' <<<"$output")"
+    # 1st line ('--expect'): the actual key
+    # 2nd line: the selected line when the user pressed the key
+    expected_key="$(command sed q <<<"$output")"
+    selected_line="$(command sed '1d' <<<"$output")"
+    if [[ $(sed -n '$=' <<<"$selected_line") -gt 1 && $expected_key != "esc" ]]; then
+        die "Please select only one notification for this operation."
+    fi
     IFS=' ' read -r _ thread_id thread_state _ repo_full_name _ _ _ _ type num _ <<<"$selected_line"
     [[ -z $type ]] && exit 0
     case "$expected_key" in
