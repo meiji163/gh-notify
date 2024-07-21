@@ -511,10 +511,6 @@ mark_all_read() {
 
 mark_individual_read() {
     local thread_id thread_state
-    # TODO: Investigate potential rate-limiting issues when sending too many requests in short
-    # succession. I didn't encounter any rate-limiting when testing with 100 unread notifications,
-    # but further testing is needed to be sure.
-
     declare -a array_threads=()
     while IFS=' ' read -r _ thread_id thread_state _; do
         if [[ $thread_state == "UNREAD" ]]; then
@@ -522,10 +518,15 @@ mark_individual_read() {
         fi
     done <"$1"
 
-    if ((${#array_threads[@]} > 1)); then
-        # If there ia large amount of threads to be processed the number of background job can put
-        # pressure on the PC and too many requests (>150) in short succession a rate limit by Github
-        # kicks in, so we run large numbers in batches of 30 with a short delay in between.
+    if [[ ${#array_threads[@]} -eq 1 ]]; then
+        gh_rest_api --silent --method PATCH "notifications/threads/${array_threads[0]}" ||
+            die "Failed to mark notifications as read."
+    elif [[ ${#array_threads[@]} -gt 1 ]]; then
+        # If there is a large number of threads to be processed, the number of background jobs can
+        # put pressure on the PC. Additionally, too many requests in short succession can trigger a
+        # rate limit by GitHub. Therefore, we process the threads in batches of 30, with a short
+        # delay of 0.3 seconds between each batch. This approach worked well in my tests with 200
+        # notifications.
         for ((i = 0; i < ${#array_threads[@]}; i += 30)); do
             for j in "${array_threads[@]:i:30}"; do
                 # Running commands in the background of a script can cause it to hang, especially if
@@ -534,8 +535,6 @@ mark_individual_read() {
             done
             command sleep 0.3
         done
-    elif ((${#array_threads[@]} == 1)); then
-        gh_rest_api --silent --method PATCH "notifications/threads/${array_threads[0]}" || die "Failed to mark notifications as read."
     fi
 }
 
