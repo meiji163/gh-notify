@@ -2,27 +2,31 @@
 set -o errexit -o nounset -o pipefail
 # https://www.gnu.org/software/bash/manual/bash.html#The-Set-Builtin
 
-# ====================== Infos =======================
+###############################################################################
+# Information
+###############################################################################
 
 # https://docs.github.com/en/rest/activity/notifications
+# https://docs.github.com/en/graphql/reference/queries
 # NotificationReason:
 # assign, author, comment, invitation, manual, mention, review_requested, security_alert, state_change, subscribed, team_mention, ci_activity
 # NotificationSubjectTypes:
 # CheckSuite, Commit, Discussion, Issue, PullRequest, Release, RepositoryVulnerabilityAlert, ...
 
-# ====================== set variables =======================
+###############################################################################
+# Set Variables
+###############################################################################
 
-# The minimum fzf version that the user needs to run all interactive commands.
-MIN_FZF_VERSION="0.29.0"
-
-# export variables for use in child processes
-# https://docs.github.com/en/rest/overview/api-versions
-export GH_REST_API_VERSION="X-GitHub-Api-Version:2022-11-28"
-# Enable terminal-style output even when the output is redirected.
-export GH_FORCE_TTY=1
-
-# Need to be exported because of its use in the 'print_help_text' function
+# Export variables for use in child processes.
 set -o allexport
+# https://docs.github.com/en/rest/overview/api-versions
+GH_REST_API_VERSION="X-GitHub-Api-Version:2022-11-28"
+# Enable terminal-style output even when the output is redirected.
+# shellcheck disable=SC2034
+GH_FORCE_TTY=1
+# The maximum number of notifications per page set by GitHub.
+GH_NOTIFY_PER_PAGE_LIMIT=50
+
 # Customize the fzf keys using environment variables
 : "${GH_NOTIFY_MARK_ALL_READ_KEY:=ctrl-a}"
 : "${GH_NOTIFY_OPEN_BROWSER_KEY:=ctrl-b}"
@@ -31,16 +35,51 @@ set -o allexport
 : "${GH_NOTIFY_RELOAD_KEY:=ctrl-r}"
 : "${GH_NOTIFY_MARK_READ_KEY:=ctrl-t}"
 : "${GH_NOTIFY_COMMENT_KEY:=ctrl-x}"
+: "${GH_NOTIFY_TOGGLE_KEY:=ctrl-y}"
 : "${GH_NOTIFY_RESIZE_PREVIEW_KEY:=btab}"
 : "${GH_NOTIFY_VIEW_KEY:=enter}"
 : "${GH_NOTIFY_TOGGLE_PREVIEW_KEY:=tab}"
 : "${GH_NOTIFY_TOGGLE_HELP_KEY:=?}"
+
+# Assign 'GH_NOTIFY_DEBUG_MODE' with 'true' to see more information
+: "${GH_NOTIFY_DEBUG_MODE:=false}"
+
+# 'SHLVL' variable represents the nesting level of the current shell
+NESTED_START_LVL="$SHLVL"
+FINAL_MSG='All caught up!'
+
+# color codes
+GREEN='\033[0;32m'
+DARK_GRAY='\033[0;90m'
+NC='\033[0m'
+WHITE_BOLD='\033[1m'
+
+exclusion_string='XXX_BOGUS_STRING_THAT_SHOULD_NOT_EXIST_XXX'
+filter_string=''
+num_notifications=0
+only_participating_flag=false
+include_all_flag=false
+preview_window_visibility='hidden'
+python_executable=''
 set +o allexport
 
-# The maximum number of notifications per page (set by GitHub)
-export GH_NOTIFY_PER_PAGE_LIMIT=50
-# Assign 'GH_NOTIFY_DEBUG_MODE' with 'true' to see more information
-export GH_NOTIFY_DEBUG_MODE=${GH_NOTIFY_DEBUG_MODE:-false}
+# No need to export, since they aren't used in any child process.
+print_static_flag=false
+mark_read_flag=false
+update_subscription_url=''
+
+# The minimum fzf version that the user needs to run all interactive commands.
+MIN_FZF_VERSION="0.29.0"
+
+###############################################################################
+# Debugging and Error Handling Configuration
+###############################################################################
+
+die() {
+    echo ERROR: "$*" >&2
+    exit 1
+}
+
 if $GH_NOTIFY_DEBUG_MODE; then
     export gh_notify_debug_log="${BASH_SOURCE[0]%/*}/gh_notify_debug.log"
 
@@ -67,6 +106,16 @@ if $GH_NOTIFY_DEBUG_MODE; then
     # Redirect possible errors and debug information from 'gh api' calls to a file
     # exec 5> >(tee -a "$gh_notify_debug_log")
 
+    # Ensure Bash 4.1+ for BASH_XTRACEFD support.
+    if [[ ${BASH_VERSINFO[0]} -lt 4 || (${BASH_VERSINFO[0]} -eq 4 && ${BASH_VERSINFO[1]} -lt 1) ]]; then
+        die "Bash 4.1 or newer is required for debugging. Current version: ${BASH_VERSION}"
+    fi
+
+    # Ensure fzf 0.51.0+ for '--with-shell' support.
+    MIN_FZF_VERSION="0.51.0"
+    # Ensure xtrace is enabled in all child processes started by 'fzf'.
+    FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS-} --with-shell \"$(which bash) -o xtrace -o nounset -o pipefail -c\""
+
     # Redirect xtrace output to a file
     exec 6>>"$gh_notify_debug_log"
     # Write the trace output to file descriptor 6
@@ -75,36 +124,11 @@ if $GH_NOTIFY_DEBUG_MODE; then
     export PS4='+$(date +%Y-%m-%d:%H:%M:%S) ${FUNCNAME[0]:-}:L${LINENO:-}:  '
     set -o xtrace
 fi
-# 'SHLVL' variable represents the nesting level of the current shell
-export NESTED_START_LVL="$SHLVL"
-export FINAL_MSG='All caught up!'
 
-# color codes
-export GREEN='\033[0;32m'
-export DARK_GRAY='\033[0;90m'
-export NC='\033[0m'
-export WHITE_BOLD='\033[1m'
+###############################################################################
+# Helper Functions
+###############################################################################
 
-export exclusion_string='XXX_BOGUS_STRING_THAT_SHOULD_NOT_EXIST_XXX'
-export filter_string=''
-export num_notifications=0
-export only_participating_flag=false
-export include_all_flag=false
-export preview_window_visibility='hidden'
-export python_executable=''
-# not necessarily to be exported, since they are not used in any child process
-print_static_flag=false
-mark_read_flag=false
-update_subscription_url=''
-
-# ===================== basic functions =====================
-
-die() {
-    echo ERROR: "$*" >&2
-    exit 1
-}
-
-# Create help message with colored text
 # IMPORTANT: Keep it synchronized with the README, but without the Examples.
 print_help_text() {
     local help_text
@@ -139,6 +163,7 @@ ${WHITE_BOLD}Key Bindings fzf${NC}
   ${GREEN}${GH_NOTIFY_RELOAD_KEY}   ${NC}  reload
   ${GREEN}${GH_NOTIFY_MARK_READ_KEY}   ${NC}  mark the selected notification as read and reload
   ${GREEN}${GH_NOTIFY_COMMENT_KEY}   ${NC}  write a comment with the editor and quit
+  ${GREEN}${GH_NOTIFY_TOGGLE_KEY}   ${NC}  toggle the selected notification
   ${GREEN}esc      ${NC}  quit
 
 ${WHITE_BOLD}Table Format${NC}
@@ -157,37 +182,6 @@ EOF
     )
     echo -e "$help_text"
 }
-
-# ====================== parse command-line options =======================
-
-while getopts 'e:f:n:u:pawhsr' flag; do
-    case "${flag}" in
-        e)
-            FINAL_MSG="No results found."
-            exclusion_string="${OPTARG}"
-            ;;
-        f)
-            FINAL_MSG="No results found."
-            filter_string="${OPTARG}"
-            ;;
-        n) num_notifications="${OPTARG}" ;;
-        p) only_participating_flag=true ;;
-        u) update_subscription_url="${OPTARG}" ;;
-        a) include_all_flag=true ;;
-        w) preview_window_visibility='nohidden' ;;
-        s) print_static_flag=true ;;
-        r) mark_read_flag=true ;;
-        h)
-            print_help_text
-            exit 0
-            ;;
-        *)
-            die "see 'gh notify -h' for help"
-            ;;
-    esac
-done
-
-# ===================== helper functions ==========================
 
 gh_rest_api() {
     command gh api --header "$GH_REST_API_VERSION" --method GET --cache=0s "$@"
@@ -503,6 +497,10 @@ view_in_pager() {
     view_notification --all_comments "$1" | command less "${less_args[@]}" >/dev/tty
 }
 
+# Use this only when the list isn't filtered to avoid marking not displayed notifications as read.
+# Check if the 'fzf' query or '-e' (exclude) or '-f' (filter) flags were used by examining
+# the emptiness of '{q}' and any changes to `FINAL_MSG`, specifically if it remains "All caught up".
+# TODO: The 2nd check is hacky; seek a cleaner solution with minimal code addition.
 mark_all_read() {
     local iso_time
     IFS=' ' read -r iso_time _ <<<"$1"
@@ -513,9 +511,30 @@ mark_all_read() {
 
 mark_individual_read() {
     local thread_id thread_state
-    IFS=' ' read -r _ thread_id thread_state _ <<<"$1"
-    if [[ $thread_state == "UNREAD" ]]; then
-        gh_rest_api --silent --method PATCH "notifications/threads/${thread_id}"
+    declare -a array_threads=()
+    while IFS=' ' read -r _ thread_id thread_state _; do
+        if [[ $thread_state == "UNREAD" ]]; then
+            array_threads+=("$thread_id")
+        fi
+    done <"$1"
+
+    if [[ ${#array_threads[@]} -eq 1 ]]; then
+        gh_rest_api --silent --method PATCH "notifications/threads/${array_threads[0]}" ||
+            die "Failed to mark notifications as read."
+    elif [[ ${#array_threads[@]} -gt 1 ]]; then
+        # If there is a large number of threads to be processed, the number of background jobs can
+        # put pressure on the PC. Additionally, too many requests in short succession can trigger a
+        # rate limit by GitHub. Therefore, we process the threads in batches of 30, with a short
+        # delay of 0.3 seconds between each batch. This approach worked well in my tests with 200
+        # notifications.
+        for ((i = 0; i < ${#array_threads[@]}; i += 30)); do
+            for j in "${array_threads[@]:i:30}"; do
+                # Running commands in the background of a script can cause it to hang, especially if
+                # the command outputs to stdout: https://tldp.org/LDP/abs/html/x9644.html#WAITHANG
+                gh_rest_api --silent --method PATCH "notifications/threads/${j}" &>/dev/null &
+            done
+            command sleep 0.3
+        done
     fi
 }
 
@@ -531,20 +550,18 @@ select_notif() {
     # a failed 'print_notifs' call, but does not display the message.
 
     # See the man page (man fzf) for an explanation of the arguments.
-    # '--print-query' and '--delimiter' are not strictly needed here,
-    # but a user could have them in their ‘FZF_DEFAULT_OPTS’
-    # and so the lines would get screwed up and fail if we don't take that into account.
     output=$(
-        SHELL="$(which bash)" command fzf \
+        SHELL="$(which bash)" FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS-} ${GH_NOTIFY_FZF_OPTS-}" command fzf \
             --ansi \
             --bind "${GH_NOTIFY_RESIZE_PREVIEW_KEY}:change-preview-window(75%:nohidden|75%:down:nohidden:border-top|nohidden)" \
             --bind "change:first" \
-            --bind "${GH_NOTIFY_MARK_ALL_READ_KEY}:execute-silent(mark_all_read {})+reload:print_notifs || true" \
+            --bind "${GH_NOTIFY_MARK_ALL_READ_KEY}:select-all+execute-silent(if [[ -z {q} && \$FINAL_MSG =~ 'All caught up' ]]; then mark_all_read {}; else mark_individual_read {+f}; fi)+reload:print_notifs || true" \
             --bind "${GH_NOTIFY_OPEN_BROWSER_KEY}:execute-silent:open_in_browser {}" \
             --bind "${GH_NOTIFY_VIEW_DIFF_KEY}:toggle-preview+change-preview:if command grep -q PullRequest <<<{10}; then command gh pr diff {11} --repo {5}  | highlight_output; else view_notification {}; fi" \
             --bind "${GH_NOTIFY_VIEW_PATCH_KEY}:toggle-preview+change-preview:if command grep -q PullRequest <<<{10}; then command gh pr diff {11} --patch --repo {5} | highlight_output; else view_notification {}; fi" \
             --bind "${GH_NOTIFY_RELOAD_KEY}:reload:print_notifs || true" \
-            --bind "${GH_NOTIFY_MARK_READ_KEY}:execute-silent(mark_individual_read {})+reload:print_notifs || true" \
+            --bind "${GH_NOTIFY_MARK_READ_KEY}:execute-silent(mark_individual_read {+f})+reload:print_notifs || true" \
+            --bind "${GH_NOTIFY_TOGGLE_KEY}:toggle+down" \
             --bind "${GH_NOTIFY_VIEW_KEY}:execute:view_in_pager {}" \
             --bind "${GH_NOTIFY_TOGGLE_PREVIEW_KEY}:toggle-preview+change-preview:view_notification {}" \
             --bind "${GH_NOTIFY_TOGGLE_HELP_KEY}:toggle-preview+change-preview:print_help_text" \
@@ -556,21 +573,23 @@ select_notif() {
             --expect "esc,${GH_NOTIFY_COMMENT_KEY}" \
             --header "${GH_NOTIFY_TOGGLE_HELP_KEY} help · esc quit" \
             --info=inline \
-            --no-multi \
+            --multi \
             --pointer="▶" \
             --preview "view_notification {}" \
             --preview-window "default:wrap:${preview_window_visibility}:60%:right:border-left" \
-            --print-query \
+            --no-print-query \
             --prompt "GitHub Notifications > " \
             --reverse \
             --with-nth 6.. <<<"$1"
     )
     # actions that close fzf are defined below
-    # 1st line ('--print-query'): the input query string
-    # 2nd line ('--expect'): the actual key
-    # 3rd line: the selected line when the user pressed the key
-    expected_key="$(command sed '1d;3d' <<<"$output")"
-    selected_line="$(command sed '1d;2d' <<<"$output")"
+    # 1st line ('--expect'): the actual key
+    # 2nd line: the selected line when the user pressed the key
+    expected_key="$(command sed q <<<"$output")"
+    selected_line="$(command sed '1d' <<<"$output")"
+    if [[ $(sed -n '$=' <<<"$selected_line") -gt 1 && $expected_key != "esc" ]]; then
+        die "Please select only one notification for this operation."
+    fi
     IFS=' ' read -r _ thread_id thread_state _ repo_full_name _ _ _ _ type num _ <<<"$selected_line"
     [[ -z $type ]] && exit 0
     case "$expected_key" in
@@ -581,7 +600,8 @@ select_notif() {
         "${GH_NOTIFY_COMMENT_KEY}")
             if command grep -qE "Issue|PullRequest" <<<"$type"; then
                 command gh issue comment "$num" --repo "$repo_full_name"
-                mark_individual_read "$selected_line" || die "Failed to mark the notification as read."
+                # The function requires input in a file-like format
+                mark_individual_read <(echo "$selected_line")
             else
                 printf "Writing comments is only supported for %bIssues%b and %bPullRequests%b.\n" \
                     "$WHITE_BOLD" "$NC" "$WHITE_BOLD" "$NC"
@@ -678,8 +698,35 @@ update_subscription() {
     fi
 }
 
-gh_notify() {
+main() {
     local python_version notifs
+    # CLI Options
+    while getopts 'e:f:n:u:pawsrh' flag; do
+        case "${flag}" in
+            e)
+                FINAL_MSG="No results found."
+                exclusion_string="${OPTARG}"
+                ;;
+            f)
+                FINAL_MSG="No results found."
+                filter_string="${OPTARG}"
+                ;;
+            n) num_notifications="${OPTARG}" ;;
+            p) only_participating_flag=true ;;
+            u) update_subscription_url="${OPTARG}" ;;
+            a) include_all_flag=true ;;
+            w) preview_window_visibility='nohidden' ;;
+            s) print_static_flag=true ;;
+            r) mark_read_flag=true ;;
+            h)
+                print_help_text
+                exit 0
+                ;;
+            *)
+                die "see 'gh notify -h' for help"
+                ;;
+        esac
+    done
 
     if ! command -v gh >/dev/null; then
         die "install 'gh'"
@@ -690,8 +737,12 @@ gh_notify() {
     fi
 
     if $mark_read_flag; then
-        mark_all_read "" || die "Failed to mark notifications as read."
-        echo "All notifications have been marked as read."
+        if [[ $FINAL_MSG =~ 'All caught up' ]]; then
+            mark_all_read "" || die "Failed to mark notifications as read."
+            echo "All notifications have been marked as read."
+        else
+            die "Can't mark all notifications as read when either the '-e' or '-f' flag was used, as it would also mark notifications as read that are filtered out."
+        fi
         exit 0
     fi
 
@@ -709,7 +760,6 @@ gh_notify() {
         if ! command -v fzf >/dev/null; then
             die "install 'fzf' or use the -s flag"
         fi
-
         check_version fzf "$MIN_FZF_VERSION"
     fi
 
@@ -726,7 +776,8 @@ gh_notify() {
     fi
 }
 
-# This will call the function only when the script is run, not when it's sourced
-if [[ ${BASH_SOURCE[0]} == "${0}" ]]; then
-    gh_notify
-fi
+###############################################################################
+# Script Execution
+###############################################################################
+
+main "$@"

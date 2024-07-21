@@ -62,6 +62,7 @@ gh notify [Flags]
 | <kbd>ctrl</kbd><kbd>r</kbd>    | reload                                              | `GH_NOTIFY_RELOAD_KEY`             |
 | <kbd>ctrl</kbd><kbd>t</kbd>    | mark the selected notification as read and reload   | `GH_NOTIFY_MARK_READ_KEY`          |
 | <kbd>ctrl</kbd><kbd>x</kbd>    | write a comment with the editor and quit            | `GH_NOTIFY_COMMENT_KEY`            |
+| <kbd>ctrl</kbd><kbd>y</kbd>    | toggle the selected notification                    | `GH_NOTIFY_TOGGLE_KEY`             |
 | <kbd>esc</kbd>                 | quit                                                |                                    |
 
 ### Table Format
@@ -100,11 +101,33 @@ export FZF_DEFAULT_OPTS="
 --bind 'ctrl-w:preview-half-page-up,ctrl-s:preview-half-page-down'"
 ```
 
+#### GH_NOTIFY_FZF_OPTS
+This environment variable lets you specify additional options and key bindings to customize the
+search and display of notifications. Unlike `FZF_DEFAULT_OPTS`, `GH_NOTIFY_FZF_OPTS` specifically
+applies to the `gh notify` extension.
+
+```sh
+# --exact: Enables exact matching instead of fuzzy matching.
+GH_NOTIFY_FZF_OPTS="--exact" gh notify -an 5
+```
+
+```sh
+# With the height flag and ~, fzf adjusts its height based on input size without filling the entire screen.
+# Requires fzf +0.34.0
+GH_NOTIFY_FZF_OPTS="--height=~100%" gh notify -an 5
+```
+
+#### Modifying Keybindings
 You can also customize the keybindings created by this extension to avoid conflicts with
 the ones defined by `fzf`. For example, change `ctrl-p` to `ctrl-u`:
 
 ```sh
 GH_NOTIFY_VIEW_PATCH_KEY="ctrl-u" gh notify
+```
+
+Or, switch the binding for toggling a notification and toggling the preview.
+```sh
+GH_NOTIFY_TOGGLE_KEY="tab" GH_NOTIFY_TOGGLE_PREVIEW_KEY="ctrl-y" gh notify
 ```
 
 **NOTE:** The assigned key must be a valid key listed in the `fzf` man page:
