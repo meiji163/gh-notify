@@ -108,7 +108,13 @@ applies to the `gh notify` extension.
 
 ```sh
 # --exact: Enables exact matching instead of fuzzy matching.
-GH_NOTIFY_FZF_OPTS="--exact" gh notify
+GH_NOTIFY_FZF_OPTS="--exact" gh notify -an 5
+```
+
+```sh
+# With the height flag and ~, fzf adjusts its height based on input size without filling the entire screen.
+# Requires fzf +0.34.0
+GH_NOTIFY_FZF_OPTS="--height=~100%" gh notify -an 5
 ```
 
 #### Modifying Keybindings
