@@ -58,10 +58,11 @@ gh notify [Flags]
 | <kbd>ctrl</kbd><kbd>a</kbd>    | mark all displayed notifications as read and reload | `GH_NOTIFY_MARK_ALL_READ_KEY`      |
 | <kbd>ctrl</kbd><kbd>b</kbd>    | browser                                             | `GH_NOTIFY_OPEN_BROWSER_KEY`       |
 | <kbd>ctrl</kbd><kbd>d</kbd>    | view diff                                           | `GH_NOTIFY_VIEW_DIFF_KEY`          |
+| <kbd>ctrl</kbd><kbd>o</kbd>    | write a comment with the editor and quit            | `GH_NOTIFY_COMMENT_KEY`            |
 | <kbd>ctrl</kbd><kbd>p</kbd>    | view diff in patch format                           | `GH_NOTIFY_VIEW_PATCH_KEY`         |
 | <kbd>ctrl</kbd><kbd>r</kbd>    | reload                                              | `GH_NOTIFY_RELOAD_KEY`             |
 | <kbd>ctrl</kbd><kbd>t</kbd>    | mark the selected notification as read and reload   | `GH_NOTIFY_MARK_READ_KEY`          |
-| <kbd>ctrl</kbd><kbd>x</kbd>    | write a comment with the editor and quit            | `GH_NOTIFY_COMMENT_KEY`            |
+| <kbd>ctrl</kbd><kbd>x</kbd>    | mark the selected notification as done and reload   | `GH_NOTIFY_MARK_DONE_KEY`          |
 | <kbd>ctrl</kbd><kbd>y</kbd>    | toggle the selected notification                    | `GH_NOTIFY_TOGGLE_KEY`             |
 | <kbd>esc</kbd>                 | quit                                                |                                    |
 
