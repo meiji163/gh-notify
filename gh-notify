@@ -205,15 +205,16 @@ get_notifs() {
         def colored(text; color):
             colors[color] + text + colors.reset;
         .[] | {
+            # The "if" needs to be wrapped in parentheses, otherwise it will fail on some OSs.
             updated_short:
                 # for some reason ".updated_at" can be null
-                if .updated_at then
+                (if .updated_at then
                     .updated_at | fromdateiso8601 | strftime("%Y-%m")
                 else
                     # Github Discussion launched in 2020
                     # https://resources.github.com/devops/process/planning/discussions/
                     "2020"
-                end,
+                end),
             # UTC time ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ
             # https://docs.github.com/en/rest/overview/resources-in-the-rest-api#timezones
             iso8601: now | strftime("%Y-%m-%dT%H:%M:%SZ"),
