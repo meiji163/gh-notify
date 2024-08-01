@@ -618,19 +618,20 @@ select_notif() {
 # This function validates the version of a tool.
 check_version() {
     local tool=$1 threshold=$2 on_error=${3:-die}
-    local user_version
+    local user_version user_version_part index
     declare -a ver_parts threshold_parts
     user_version=$(command $tool --version 2>&1 |
-        command command grep --color=never --extended-regexp --only-matching --regexp='[0-9]+(\.[0-9]+)*' |
+        command grep --color=never --extended-regexp --only-matching --regexp='[0-9]+(\.[0-9]+)*' |
         command sed q)
 
     IFS='.' read -ra ver_parts <<<"$user_version"
     IFS='.' read -ra threshold_parts <<<"$threshold"
 
-    for i in "${!threshold_parts[@]}"; do
-        if ((i >= ${#ver_parts[@]})) || ((ver_parts[i] < threshold_parts[i])); then
+    for index in "${!threshold_parts[@]}"; do
+        user_version_part=${ver_parts[index]:-0}
+        if ((user_version_part < threshold_parts[index])); then
             $on_error "Your '$tool' version '$user_version' is insufficient. The minimum required version is '$threshold'."
-        elif ((ver_parts[i] > threshold_parts[i])); then
+        elif ((user_version_part > threshold_parts[index])); then
             break
         fi
     done
