@@ -620,7 +620,7 @@ check_version() {
     local user_version user_version_part index
     declare -a ver_parts threshold_parts
     user_version=$(command $tool --version 2>&1 |
-        command command grep --color=never --extended-regexp --only-matching --regexp='[0-9]+(\.[0-9]+)*' |
+        command grep --color=never --extended-regexp --only-matching --regexp='[0-9]+(\.[0-9]+)*' |
         command sed q)
 
     IFS='.' read -ra ver_parts <<<"$user_version"
