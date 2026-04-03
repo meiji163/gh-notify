@@ -446,11 +446,47 @@ view_notification() {
                 --jq '.files[].patch' | highlight_output
             ;;
         Issue)
-            # use the '--comments' flag only if 'all_comments' exists and is not null
-            command gh issue view "$number" --repo "$repo_full_name" ${all_comments:+"--comments"}
+            local fields="number,title,state,author,createdAt,body,url,assignees,labels,milestone,comments"
+            local template
+            template="{{- \$last := \"\" -}}
+{{- range .comments -}}{{- \$last = . -}}{{- end -}}
+{{- if \$last -}}
+{{ \"Latest Comment\" | autocolor \"magenta\" }} • {{ \$last.author.login | autocolor \"bold\" }} • {{ timeago \$last.createdAt }}
+{{ \$last.body }}
+
+{{ \"────────────────────────────────────────────────────────────────────────────────\" | autocolor \"gray\" }}
+
+{{ end -}}
+{{printf \"#%v\" .number | autocolor \"green\"}} {{.title | autocolor \"bold\"}}
+{{.state | autocolor \"bold\"}} • {{.author.login | autocolor \"bold\"}} opened {{timeago .createdAt}}
+{{if .assignees}}Assignees: {{range .assignees}}{{.login}} {{end}}
+{{end}}{{if .milestone}}Milestone: {{.milestone.title}}
+{{end}}{{if .labels}}Labels: {{range .labels}}{{.name}} {{end}}
+{{end}}
+{{.body}}"
+
+            if [[ -n "${all_comments:-}" ]]; then
+                template+=$'\n\n{{range .comments}}\n---\n{{.author.login | autocolor "bold"}} • {{timeago .createdAt}}\n{{.body}}\n{{end}}'
+            fi
+            command gh issue view "$number" --repo "$repo_full_name" --json "$fields" --template "$template"
             ;;
         PullRequest)
-            command gh pr view "$number" --repo "$repo_full_name" ${all_comments:+"--comments"}
+            local fields="number,title,state,author,createdAt,baseRefName,headRefName,body,url,reviewDecision,assignees,labels,milestone"
+            local template
+            template="{{printf \"#%v\" .number | autocolor \"green\"}} {{.title | autocolor \"bold\"}}
+{{.state | autocolor \"bold\"}} • {{.author.login | autocolor \"bold\"}} wants to merge into {{.baseRefName | autocolor \"cyan\"}} from {{.headRefName | autocolor \"cyan\"}} • {{timeago .createdAt}}
+{{if .reviewDecision}}Reviewers: {{.reviewDecision}}
+{{end}}{{if .assignees}}Assignees: {{range .assignees}}{{.login}} {{end}}
+{{end}}{{if .milestone}}Milestone: {{.milestone.title}}
+{{end}}{{if .labels}}Labels: {{range .labels}}{{.name}} {{end}}
+{{end}}
+{{.body}}"
+
+            if [[ -n "${all_comments:-}" ]]; then
+                fields+=",comments"
+                template+=$'\n\n{{range .comments}}\n---\n{{.author.login | autocolor "bold"}} • {{timeago .createdAt}}\n{{.body}}\n{{end}}'
+            fi
+            command gh pr view "$number" --repo "$repo_full_name" --json "$fields" --template "$template"
             ;;
         Pre-release | Release)
             command gh release view "$number" --repo "$repo_full_name"
