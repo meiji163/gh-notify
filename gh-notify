@@ -34,6 +34,7 @@ GH_NOTIFY_PER_PAGE_LIMIT=50
 : "${GH_NOTIFY_VIEW_PATCH_KEY:=ctrl-p}"
 : "${GH_NOTIFY_RELOAD_KEY:=ctrl-r}"
 : "${GH_NOTIFY_MARK_READ_KEY:=ctrl-t}"
+: "${GH_NOTIFY_MARK_DONE_KEY:=ctrl-w}"
 : "${GH_NOTIFY_COMMENT_KEY:=ctrl-x}"
 : "${GH_NOTIFY_TOGGLE_KEY:=ctrl-y}"
 : "${GH_NOTIFY_RESIZE_PREVIEW_KEY:=btab}"
@@ -162,6 +163,7 @@ ${WHITE_BOLD}Key Bindings fzf${NC}
   ${GREEN}${GH_NOTIFY_VIEW_PATCH_KEY}   ${NC}  view diff in patch format
   ${GREEN}${GH_NOTIFY_RELOAD_KEY}   ${NC}  reload
   ${GREEN}${GH_NOTIFY_MARK_READ_KEY}   ${NC}  mark the selected notification as read and reload
+  ${GREEN}${GH_NOTIFY_MARK_DONE_KEY}   ${NC}  mark the selected notification as both read and done, and reload
   ${GREEN}${GH_NOTIFY_COMMENT_KEY}   ${NC}  write a comment with the editor and quit
   ${GREEN}${GH_NOTIFY_TOGGLE_KEY}   ${NC}  toggle the selected notification
   ${GREEN}esc      ${NC}  quit
@@ -539,6 +541,35 @@ mark_individual_read() {
     fi
 }
 
+mark_individual_done() {
+    local thread_id thread_state
+    declare -a array_threads=()
+    while IFS=' ' read -r _ thread_id thread_state _; do
+        if [[ $thread_state == "UNREAD" ]]; then
+            array_threads+=("$thread_id")
+        fi
+    done <"$1"
+
+    if [[ ${#array_threads[@]} -eq 1 ]]; then
+        gh_rest_api --silent --method DELETE "notifications/threads/${array_threads[0]}" ||
+            die "Failed to mark notifications as done."
+    elif [[ ${#array_threads[@]} -gt 1 ]]; then
+        # If there is a large number of threads to be processed, the number of background jobs can
+        # put pressure on the PC. Additionally, too many requests in short succession can trigger a
+        # rate limit by GitHub. Therefore, we process the threads in batches of 30, with a short
+        # delay of 0.3 seconds between each batch. This approach worked well in my tests with 200
+        # notifications.
+        for ((i = 0; i < ${#array_threads[@]}; i += 30)); do
+            for j in "${array_threads[@]:i:30}"; do
+                # Running commands in the background of a script can cause it to hang, especially if
+                # the command outputs to stdout: https://tldp.org/LDP/abs/html/x9644.html#WAITHANG
+                gh_rest_api --silent --method DELETE "notifications/threads/${j}" &>/dev/null &
+            done
+            command sleep 0.3
+        done
+    fi
+}
+
 select_notif() {
     local output expected_key selected_line repo_full_name type num
     # Export functions to child processes. 'fzf' executes commands with $SHELL -c; to ensure
@@ -546,7 +577,7 @@ select_notif() {
     export -f print_help_text print_notifs get_notifs
     export -f process_page process_discussion process_url gh_rest_api
     export -f highlight_output open_in_browser view_notification view_in_pager
-    export -f mark_all_read mark_individual_read
+    export -f mark_all_read mark_individual_read mark_individual_done
     # The 'die' function is not exported because 'fzf' warns you about the error in
     # a failed 'print_notifs' call, but does not display the message.
 
@@ -562,6 +593,7 @@ select_notif() {
             --bind "${GH_NOTIFY_VIEW_PATCH_KEY}:toggle-preview+change-preview:if command grep -q PullRequest <<<{10}; then command gh pr diff {11} --patch --repo {5} | highlight_output; else view_notification {}; fi" \
             --bind "${GH_NOTIFY_RELOAD_KEY}:reload:print_notifs || true" \
             --bind "${GH_NOTIFY_MARK_READ_KEY}:execute-silent(mark_individual_read {+f})+reload:print_notifs || true" \
+            --bind "${GH_NOTIFY_MARK_DONE_KEY}:execute-silent(mark_individual_read {+f}; mark_individual_done {+f})+reload:print_notifs || true" \
             --bind "${GH_NOTIFY_TOGGLE_KEY}:toggle+down" \
             --bind "${GH_NOTIFY_VIEW_KEY}:execute:view_in_pager {}" \
             --bind "${GH_NOTIFY_TOGGLE_PREVIEW_KEY}:toggle-preview+change-preview:view_notification {}" \
