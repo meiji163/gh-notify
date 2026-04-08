@@ -63,7 +63,7 @@ gh notify [Flags]
 | <kbd>ctrl</kbd><kbd>t</kbd>    | mark the selected notification as read and reload   | `GH_NOTIFY_MARK_READ_KEY`          |
 | <kbd>ctrl</kbd><kbd>x</kbd>    | write a comment with the editor and quit            | `GH_NOTIFY_COMMENT_KEY`            |
 | <kbd>ctrl</kbd><kbd>y</kbd>    | toggle the selected notification                    | `GH_NOTIFY_TOGGLE_KEY`             |
-| <kbd>esc</kbd>                 | quit                                                |                                    |
+| <kbd>esc</kbd>                 | quit                                                | `GH_NOTIFY_EXIT_KEY`               |
 
 ### Table Format
 
@@ -128,6 +128,11 @@ GH_NOTIFY_VIEW_PATCH_KEY="ctrl-u" gh notify
 Or, switch the binding for toggling a notification and toggling the preview.
 ```sh
 GH_NOTIFY_TOGGLE_KEY="tab" GH_NOTIFY_TOGGLE_PREVIEW_KEY="ctrl-y" gh notify
+```
+
+To reassign the exit key from `esc` to `ctrl-c` and ignore the `esc` key, use:
+```sh
+GH_NOTIFY_FZF_OPTS="--bind 'esc:ignore'" GH_NOTIFY_EXIT_KEY="ctrl-c" gh notify
 ```
 
 **NOTE:** The assigned key must be a valid key listed in the `fzf` man page:

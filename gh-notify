@@ -40,6 +40,7 @@ GH_NOTIFY_PER_PAGE_LIMIT=50
 : "${GH_NOTIFY_VIEW_KEY:=enter}"
 : "${GH_NOTIFY_TOGGLE_PREVIEW_KEY:=tab}"
 : "${GH_NOTIFY_TOGGLE_HELP_KEY:=?}"
+: "${GH_NOTIFY_EXIT_KEY:=esc}"
 
 # Assign 'GH_NOTIFY_DEBUG_MODE' with 'true' to see more information
 : "${GH_NOTIFY_DEBUG_MODE:=false}"
@@ -164,7 +165,7 @@ ${WHITE_BOLD}Key Bindings fzf${NC}
   ${GREEN}${GH_NOTIFY_MARK_READ_KEY}   ${NC}  mark the selected notification as read and reload
   ${GREEN}${GH_NOTIFY_COMMENT_KEY}   ${NC}  write a comment with the editor and quit
   ${GREEN}${GH_NOTIFY_TOGGLE_KEY}   ${NC}  toggle the selected notification
-  ${GREEN}esc      ${NC}  quit
+  ${GREEN}${GH_NOTIFY_EXIT_KEY}      ${NC}  quit
 
 ${WHITE_BOLD}Table Format${NC}
   ${GREEN}unread symbol${NC}  indicates unread status
@@ -571,8 +572,8 @@ select_notif() {
             --color "header:green:italic:dim" \
             --color "prompt:80,info:40" \
             --delimiter '\s+' \
-            --expect "esc,${GH_NOTIFY_COMMENT_KEY}" \
-            --header "${GH_NOTIFY_TOGGLE_HELP_KEY} help · esc quit" \
+            --expect "${GH_NOTIFY_EXIT_KEY},${GH_NOTIFY_COMMENT_KEY}" \
+            --header "${GH_NOTIFY_TOGGLE_HELP_KEY} help · ${GH_NOTIFY_EXIT_KEY} quit" \
             --info=inline \
             --multi \
             --pointer="▶" \
@@ -588,13 +589,13 @@ select_notif() {
     # 2nd line: the selected line when the user pressed the key
     expected_key="$(command sed q <<<"$output")"
     selected_line="$(command sed '1d' <<<"$output")"
-    if [[ $(sed -n '$=' <<<"$selected_line") -gt 1 && $expected_key != "esc" ]]; then
+    if [[ $(sed -n '$=' <<<"$selected_line") -gt 1 && $expected_key != "${GH_NOTIFY_EXIT_KEY}" ]]; then
         die "Please select only one notification for this operation."
     fi
     IFS=' ' read -r _ thread_id thread_state _ repo_full_name _ _ _ _ type num _ <<<"$selected_line"
     [[ -z $type ]] && exit 0
     case "$expected_key" in
-        esc)
+        "${GH_NOTIFY_EXIT_KEY}")
             # quit with exit code 0; 'fzf' returns 130 by default
             exit 0
             ;;
