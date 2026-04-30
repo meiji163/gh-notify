@@ -69,7 +69,7 @@ mark_read_flag=false
 update_subscription_url=''
 
 # The minimum fzf version that the user needs to run all interactive commands.
-MIN_FZF_VERSION="0.45.0"
+MIN_FZF_VERSION="0.67.0"
 
 ###############################################################################
 # Debugging and Error Handling Configuration
@@ -111,8 +111,6 @@ if $GH_NOTIFY_DEBUG_MODE; then
         die "Bash 4.1 or newer is required for debugging. Current version: ${BASH_VERSION}"
     fi
 
-    # Ensure fzf 0.51.0+ for '--with-shell' support.
-    MIN_FZF_VERSION="0.51.0"
     # Ensure xtrace is enabled in all child processes started by 'fzf'.
     FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS-} --with-shell \"$(which bash) -o xtrace -o nounset -o pipefail -c\""
 
@@ -590,11 +588,12 @@ select_notif() {
             --color "header:green:italic:dim" \
             --color "prompt:80,info:40" \
             --delimiter '\s+' \
+            --ellipsis '…' \
             --expect "esc,${GH_NOTIFY_COMMENT_KEY}" \
+            --freeze-left 4 \
             --header "${GH_NOTIFY_TOGGLE_HELP_KEY} help · esc quit" \
             --info=inline \
             --multi \
-            --pointer="▶" \
             --preview "view_notification {}" \
             --preview-window "default:wrap:${preview_window_visibility}:60%:right:border-left" \
             --no-print-query \
