@@ -69,7 +69,7 @@ mark_read_flag=false
 update_subscription_url=''
 
 # The minimum fzf version that the user needs to run all interactive commands.
-MIN_FZF_VERSION="0.29.0"
+MIN_FZF_VERSION="0.67.0"
 
 ###############################################################################
 # Debugging and Error Handling Configuration
@@ -111,8 +111,6 @@ if $GH_NOTIFY_DEBUG_MODE; then
         die "Bash 4.1 or newer is required for debugging. Current version: ${BASH_VERSION}"
     fi
 
-    # Ensure fzf 0.51.0+ for '--with-shell' support.
-    MIN_FZF_VERSION="0.51.0"
     # Ensure xtrace is enabled in all child processes started by 'fzf'.
     FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS-} --with-shell \"$(which bash) -o xtrace -o nounset -o pipefail -c\""
 
@@ -306,11 +304,8 @@ print_notifs() {
     result=$(command grep -v "$exclusion_string" <<<"$all_notifs" | command grep "$filter_string" | command column -ts $'\t')
     # if the value is greater than the initial start value, we assume to be in the 'fzf’ reload function
     if [[ -z $result && $SHLVL -gt $NESTED_START_LVL ]]; then
-        # TODO: exit fzf automatically if the list is empty after a reload
-        # it does work with '--bind "zero:become:"', but this only came with version '0.40.0'
-        # workaround, since fzf hides the first elements with '--with-nth 6..'
-        # if the list is empty on a reload, the message would be hidden, so ' \b' (backspace) is added
-        echo -e " \b \b \b \b \b$FINAL_MSG"
+        # exit fzf automatically if the list is empty after a reload
+        :
     else
         echo "$result"
     fi
@@ -551,19 +546,41 @@ select_notif() {
     # a failed 'print_notifs' call, but does not display the message.
 
     # See the man page (man fzf) for an explanation of the arguments.
+
+    # Reason for using TERM=dumb before 'gh' calls inside 'execute(...)':
+    #
+    # https://github.com/junegunn/fzf/discussions/4467
+    #
+    # [23/May/2024] fzf 'execute' action provides the command with a full interactive terminal
+    # (TTY). Newer versions of 'gh' and its dependencies unconditionally query this TTY for features
+    # (e.g., background color), even for non-interactive commands. This causes the terminal's
+    # response (escape codes) to leak into the output.
+    #
+    # This issue does not occur with 'execute-silent', which does not provide a TTY, or when piping
+    # gh into cat. Still seems buggy and 'gh' should provide a env varibale for disabling.
+    #
+    # The problematic behavior in 'gh' was introduced in two key stages:
+    # 1. [21/Mar/2025] Thematic Headers (https://github.com/cli/cli/commit/6355e54e): 'gh' itself
+    #    began querying the terminal. This could be suppressed with 'NO_COLOR=1'.
+    #
+    # 2. [31/Mar/2025] Accessible Prompter (https://github.com/cli/cli/commit/202c1ad1): A new
+    #    dependency ('bubbletea') was added. It performs its own terminal query during its 'init()'
+    #    phase, which cannot be disabled by 'gh'-specific flags like 'NO_COLOR'. Setting 'TERM=dumb'
+    #    does.
     output=$(
         SHELL="$(which bash)" FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS-} ${GH_NOTIFY_FZF_OPTS-}" command fzf \
             --ansi \
+            --bind "zero:become:" \
             --bind "${GH_NOTIFY_RESIZE_PREVIEW_KEY}:change-preview-window(75%:nohidden|75%:down:nohidden:border-top|nohidden)" \
-            --bind "change:first" \
+            --bind "change:first+unbind:zero" \
             --bind "${GH_NOTIFY_MARK_ALL_READ_KEY}:select-all+execute-silent(if [[ -z {q} && \$FINAL_MSG =~ 'All caught up' ]]; then mark_all_read {}; else mark_individual_read {+f}; fi)+reload:print_notifs || true" \
-            --bind "${GH_NOTIFY_OPEN_BROWSER_KEY}:execute-silent:open_in_browser {}" \
+            --bind "${GH_NOTIFY_OPEN_BROWSER_KEY}:execute-silent(mark_individual_read {f}; open_in_browser {})+transform:[[ {3} == 'UNREAD' ]] && echo 'reload:print_notifs || true'" \
             --bind "${GH_NOTIFY_VIEW_DIFF_KEY}:toggle-preview+change-preview:if command grep -q PullRequest <<<{10}; then command gh pr diff {11} --repo {5}  | highlight_output; else view_notification {}; fi" \
             --bind "${GH_NOTIFY_VIEW_PATCH_KEY}:toggle-preview+change-preview:if command grep -q PullRequest <<<{10}; then command gh pr diff {11} --patch --repo {5} | highlight_output; else view_notification {}; fi" \
             --bind "${GH_NOTIFY_RELOAD_KEY}:reload:print_notifs || true" \
             --bind "${GH_NOTIFY_MARK_READ_KEY}:execute-silent(mark_individual_read {+f})+reload:print_notifs || true" \
             --bind "${GH_NOTIFY_TOGGLE_KEY}:toggle+down" \
-            --bind "${GH_NOTIFY_VIEW_KEY}:execute:view_in_pager {}" \
+            --bind "${GH_NOTIFY_VIEW_KEY}:execute(TERM=dumb mark_individual_read {f}; view_in_pager {})+transform:[[ {3} == 'UNREAD' ]] && echo 'reload:print_notifs || true'" \
             --bind "${GH_NOTIFY_TOGGLE_PREVIEW_KEY}:toggle-preview+change-preview:view_notification {}" \
             --bind "${GH_NOTIFY_TOGGLE_HELP_KEY}:toggle-preview+change-preview:print_help_text" \
             --border horizontal \
@@ -571,11 +588,12 @@ select_notif() {
             --color "header:green:italic:dim" \
             --color "prompt:80,info:40" \
             --delimiter '\s+' \
+            --ellipsis '…' \
             --expect "esc,${GH_NOTIFY_COMMENT_KEY}" \
+            --freeze-left 4 \
             --header "${GH_NOTIFY_TOGGLE_HELP_KEY} help · esc quit" \
             --info=inline \
             --multi \
-            --pointer="▶" \
             --preview "view_notification {}" \
             --preview-window "default:wrap:${preview_window_visibility}:60%:right:border-left" \
             --no-print-query \
@@ -583,6 +601,10 @@ select_notif() {
             --reverse \
             --with-nth 6.. <<<"$1"
     )
+    [[ -z $output ]] && {
+        echo "$FINAL_MSG"
+        exit 0
+    }
     # actions that close fzf are defined below
     # 1st line ('--expect'): the actual key
     # 2nd line: the selected line when the user pressed the key
@@ -641,7 +663,7 @@ update_subscription() {
     local graphql_query_resource=$'query ($url_input: URI!) {resource(url: $url_input) { ... on Subscribable { __typename id viewerCanSubscribe viewerSubscription }}}'
     local graphql_mutation_update_subscription=$'mutation ($updated_state: SubscriptionState!, $node_id: ID!) { updateSubscription(input: {state: $updated_state, subscribableId: $node_id}) { subscribable { viewerSubscription }}}'
     local graphql_query_subscribable=$'{ __type(name: "Subscribable") { possibleTypes { name }}}'
-    local updated_state update_text possibleTypes
+    local requested_state updated_state update_text possibleTypes
     if IFS=$'\t' read -r object_type node_id viewer_can_subscribe viewer_subscription < <(command gh api graphql \
         --raw-field url_input="$update_subscription_url" \
         --raw-field query="$graphql_query_resource" \
@@ -660,16 +682,14 @@ update_subscription() {
                 updated_state="UNSUBSCRIBED"
                 update_text="Notifications disabled for this '$object_type'."
                 ;;
-            IGNORED | UNSUBSCRIBED)
+            IGNORED | UNSUBSCRIBED | "")
+                # Empty value happens when a user makes a 'Custom' selection,
+                # e.g. watching only Releases on the repo, viewer_subscription
+                # becomes null for any URL associated with the entire repo
                 updated_state="SUBSCRIBED"
                 update_text="Notifications enabled for this '$object_type'."
                 ;;
             *)
-                # TODO: When a user makes a 'Custom' selection on what to watch in a repo via the
-                # Web UI. For instance, if a user chooses to only watch 'Releases', then
-                # 'viewer_subscription' becomes null for any URL associated with the entire repo and
-                # this error message is displayed. Currently, there is no workaround for this. Last
-                # checked: March '24.
                 die "The queried value for the current status is unknown: '$viewer_subscription'."
                 ;;
         esac
@@ -679,11 +699,14 @@ update_subscription() {
         # subscription status is automatically set to "IGNORED" and can never be set
         # to "UNSUBSCRIBED" as long as you are "SUBSCRIBED" to the Repository. This is
         # a design decision by GitHub.
-        updated_state=$(command gh api graphql --raw-field updated_state="$updated_state" \
+        requested_state=$updated_state
+        updated_state=$(command gh api graphql \
+            --raw-field updated_state="$updated_state" \
             --raw-field node_id="$node_id" \
             --raw-field query="$graphql_mutation_update_subscription" \
             --jq '.data.updateSubscription.subscribable.viewerSubscription') ||
             die "Failed GraphQL mutation to update the subscription status."
+        [[ -z $updated_state ]] && updated_state="${requested_state}"
         echo "The list of all your subscriptions is only available via the Web UI."
         printf "%bhttps://github.com/notifications/subscriptions%b\n\n" "$DARK_GRAY" "$NC"
         printf "%b%s%b: %b%s%b\n" "$GREEN" "$updated_state" "$NC" "$WHITE_BOLD" "$update_text" "$NC"
