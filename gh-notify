@@ -76,51 +76,51 @@ MIN_FZF_VERSION="0.67.0"
 ###############################################################################
 
 die() {
-    echo ERROR: "$*" >&2
-    exit 1
+  echo ERROR: "$*" >&2
+  exit 1
 }
 
 if $GH_NOTIFY_DEBUG_MODE; then
-    export gh_notify_debug_log="${BASH_SOURCE[0]%/*}/gh_notify_debug.log"
+  export gh_notify_debug_log="${BASH_SOURCE[0]%/*}/gh_notify_debug.log"
 
-    # Tell the user where we saved the debug information
-    trap 'echo [DEBUG] $gh_notify_debug_log' EXIT
+  # Tell the user where we saved the debug information
+  trap 'echo [DEBUG] $gh_notify_debug_log' EXIT
 
-    # Clear the file on every run
-    : >"$gh_notify_debug_log"
+  # Clear the file on every run
+  : >"$gh_notify_debug_log"
 
-    # Unset GH_FORCE_TTY to avoid unnecessary color codes in the debug file
-    unset GH_FORCE_TTY
+  # Unset GH_FORCE_TTY to avoid unnecessary color codes in the debug file
+  unset GH_FORCE_TTY
 
-    # Redirect stdout and stderr to the terminal and a file, in fzf 0.52.0+ the UI is no longer
-    # written to stderr: https://github.com/junegunn/fzf/discussions/3792
-    exec &> >(tee -a "$gh_notify_debug_log")
+  # Redirect stdout and stderr to the terminal and a file, in fzf 0.52.0+ the UI is no longer
+  # written to stderr: https://github.com/junegunn/fzf/discussions/3792
+  exec &> >(tee -a "$gh_notify_debug_log")
 
-    # [DISABLED] 'GH_DEBUG' sends the output to file descriptor 2, but these error messages can be
-    # caught by adding '2>&5' to all gh api calls, but this would also hide the actual error message
-    # from a failed gh api call. It would be great to have an actual environment variable like
-    # 'BASH_XTRACEFD' to set the desired file descriptor for the verbose output of GH_DEBUG
+  # [DISABLED] 'GH_DEBUG' sends the output to file descriptor 2, but these error messages can be
+  # caught by adding '2>&5' to all gh api calls, but this would also hide the actual error message
+  # from a failed gh api call. It would be great to have an actual environment variable like
+  # 'BASH_XTRACEFD' to set the desired file descriptor for the verbose output of GH_DEBUG
 
-    # 'GH_DEBUG' is useful for determining why a call to the GitHub API might have failed
-    # export GH_DEBUG=api
-    # Redirect possible errors and debug information from 'gh api' calls to a file
-    # exec 5> >(tee -a "$gh_notify_debug_log")
+  # 'GH_DEBUG' is useful for determining why a call to the GitHub API might have failed
+  # export GH_DEBUG=api
+  # Redirect possible errors and debug information from 'gh api' calls to a file
+  # exec 5> >(tee -a "$gh_notify_debug_log")
 
-    # Ensure Bash 4.1+ for BASH_XTRACEFD support.
-    if [[ ${BASH_VERSINFO[0]} -lt 4 || (${BASH_VERSINFO[0]} -eq 4 && ${BASH_VERSINFO[1]} -lt 1) ]]; then
-        die "Bash 4.1 or newer is required for debugging. Current version: ${BASH_VERSION}"
-    fi
+  # Ensure Bash 4.1+ for BASH_XTRACEFD support.
+  if [[ ${BASH_VERSINFO[0]} -lt 4 || (${BASH_VERSINFO[0]} -eq 4 && ${BASH_VERSINFO[1]} -lt 1) ]]; then
+    die "Bash 4.1 or newer is required for debugging. Current version: ${BASH_VERSION}"
+  fi
 
-    # Ensure xtrace is enabled in all child processes started by 'fzf'.
-    FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS-} --with-shell \"$(which bash) -o xtrace -o nounset -o pipefail -c\""
+  # Ensure xtrace is enabled in all child processes started by 'fzf'.
+  FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS-} --with-shell \"$(which bash) -o xtrace -o nounset -o pipefail -c\""
 
-    # Redirect xtrace output to a file
-    exec 6>>"$gh_notify_debug_log"
-    # Write the trace output to file descriptor 6
-    export BASH_XTRACEFD=6
-    # More verbose execution trace prompt
-    export PS4='+$(date +%Y-%m-%d:%H:%M:%S) ${FUNCNAME[0]:-}:L${LINENO:-}:  '
-    set -o xtrace
+  # Redirect xtrace output to a file
+  exec 6>>"$gh_notify_debug_log"
+  # Write the trace output to file descriptor 6
+  export BASH_XTRACEFD=6
+  # More verbose execution trace prompt
+  export PS4='+$(date +%Y-%m-%d:%H:%M:%S) ${FUNCNAME[0]:-}:L${LINENO:-}:  '
+  set -o xtrace
 fi
 
 ###############################################################################
@@ -129,9 +129,9 @@ fi
 
 # IMPORTANT: Keep it synchronized with the README, but without the Examples.
 print_help_text() {
-    local help_text
-    help_text=$(
-        command cat <<EOF
+  local help_text
+  help_text=$(
+    command cat <<EOF
 ${WHITE_BOLD}Usage${NC}
   gh notify [Flags]
 
@@ -177,21 +177,21 @@ ${WHITE_BOLD}Example${NC}
     ${DARK_GRAY}# Display the last 20 notifications${NC}
     gh notify -an 20
 EOF
-    )
-    echo -e "$help_text"
+  )
+  echo -e "$help_text"
 }
 
 gh_rest_api() {
-    command gh api --header "$GH_REST_API_VERSION" --method GET --cache=0s "$@"
+  command gh api --header "$GH_REST_API_VERSION" --method GET --cache=0s "$@"
 }
 
 get_notifs() {
-    local page_num="$1"
-    gh_rest_api notifications \
-        --field per_page="$GH_NOTIFY_PER_PAGE_LIMIT" --field page="$page_num" \
-        --field participating="$only_participating_flag" --field all="$include_all_flag" \
-        --jq \
-        $'def colors:
+  local page_num="$1"
+  gh_rest_api notifications \
+    --field per_page="$GH_NOTIFY_PER_PAGE_LIMIT" --field page="$page_num" \
+    --field participating="$only_participating_flag" --field all="$include_all_flag" \
+    --jq \
+    $'def colors:
         {
             "cyan": "\u001b[36m",
             "cyan_bold": "\u001b[1;36m",
@@ -263,234 +263,234 @@ get_notifs() {
 }
 
 print_notifs() {
-    local local_page_size page new_notifs result
-    local page_num=1
-    local total_requested="$num_notifications" # Total number of notifications requested
-    local fetched_count=0                      # A counter for the number of fetched notifications
-    local all_notifs=""
+  local local_page_size page new_notifs result
+  local page_num=1
+  local total_requested="$num_notifications" # Total number of notifications requested
+  local fetched_count=0                      # A counter for the number of fetched notifications
+  local all_notifs=""
 
-    while :; do
-        local_page_size=$((total_requested - fetched_count > GH_NOTIFY_PER_PAGE_LIMIT ? \
-            GH_NOTIFY_PER_PAGE_LIMIT : total_requested - fetched_count))
-        page=$(get_notifs "$page_num") || die "Failed to get notifications."
-        [[ -z $page ]] && break
-        # Print "marching ants" after `get_notifs` to indicate progress.
-        printf >&2 "."
+  while :; do
+    local_page_size=$((total_requested - fetched_count > GH_NOTIFY_PER_PAGE_LIMIT ? \
+      GH_NOTIFY_PER_PAGE_LIMIT : total_requested - fetched_count))
+    page=$(get_notifs "$page_num") || die "Failed to get notifications."
+    [[ -z $page ]] && break
+    # Print "marching ants" after `get_notifs` to indicate progress.
+    printf >&2 "."
 
-        page_num=$((page_num + 1))
-        # On each run, we can fetch up to 50 notifications. If a user requested 56, we can't specify
-        # 6 notifications 'per_page' for page number 2. This would incorrectly return notifications
-        # 6-11 from page number 1, which we already have. Therefore, if a user requests 56
-        # notifications, we need to call the REST API twice with the maximum 'per_page' size and
-        # then truncate the second page accordingly.
-        if ((total_requested > 0)) && ((local_page_size < GH_NOTIFY_PER_PAGE_LIMIT)); then
-            page=$(command head -n "$local_page_size" <<<"$page")
-        else
-            local_page_size=$(command sed -n '$=' <<<"$page")
-        fi
-
-        new_notifs=$(process_page "$page") || die "Failed to process page."
-        all_notifs="${all_notifs}${new_notifs}"
-        fetched_count=$((fetched_count + local_page_size))
-        # If the number of fetched results equals the number of requested results, or if the number
-        # of items retrieved in this round is less than the maximum per page limit, we stop.
-        if ((fetched_count == total_requested)) || ((local_page_size < GH_NOTIFY_PER_PAGE_LIMIT)); then
-            break
-        fi
-    done
-    # clear the dots we printed
-    echo >&2 -ne "\r\033[K"
-
-    result=$(command grep -v "$exclusion_string" <<<"$all_notifs" | command grep "$filter_string" | command column -ts $'\t')
-    # if the value is greater than the initial start value, we assume to be in the 'fzf’ reload function
-    if [[ -z $result && $SHLVL -gt $NESTED_START_LVL ]]; then
-        # exit fzf automatically if the list is empty after a reload
-        :
+    page_num=$((page_num + 1))
+    # On each run, we can fetch up to 50 notifications. If a user requested 56, we can't specify
+    # 6 notifications 'per_page' for page number 2. This would incorrectly return notifications
+    # 6-11 from page number 1, which we already have. Therefore, if a user requests 56
+    # notifications, we need to call the REST API twice with the maximum 'per_page' size and
+    # then truncate the second page accordingly.
+    if ((total_requested > 0)) && ((local_page_size < GH_NOTIFY_PER_PAGE_LIMIT)); then
+      page=$(command head -n "$local_page_size" <<<"$page")
     else
-        echo "$result"
+      local_page_size=$(command sed -n '$=' <<<"$page")
     fi
+
+    new_notifs=$(process_page "$page") || die "Failed to process page."
+    all_notifs="${all_notifs}${new_notifs}"
+    fetched_count=$((fetched_count + local_page_size))
+    # If the number of fetched results equals the number of requested results, or if the number
+    # of items retrieved in this round is less than the maximum per page limit, we stop.
+    if ((fetched_count == total_requested)) || ((local_page_size < GH_NOTIFY_PER_PAGE_LIMIT)); then
+      break
+    fi
+  done
+  # clear the dots we printed
+  echo >&2 -ne "\r\033[K"
+
+  result=$(command grep -v "$exclusion_string" <<<"$all_notifs" | command grep "$filter_string" | command column -ts $'\t')
+  # if the value is greater than the initial start value, we assume to be in the 'fzf’ reload function
+  if [[ -z $result && $SHLVL -gt $NESTED_START_LVL ]]; then
+    # exit fzf automatically if the list is empty after a reload
+    :
+  else
+    echo "$result"
+  fi
 }
 
 # Processes a page of GitHub notifications, extracting and formatting relevant details.
 process_page() {
-    local page="$1"
-    while IFS=$'\t' read -r updated_short iso8601 thread_id thread_state \
-        comment_url repo_full_name unread_symbol timefmt repo_abbreviated type url reason \
-        title; do
-        local number="" modified_type
-        if command grep -q "Discussion" <<<"$type"; then
-            number=$(process_discussion "$title" "$updated_short" "$repo_full_name") || return 1
-        elif ! command grep -q "^null" <<<"$url"; then
-            if ! output=$(process_url "$type" "$url"); then
-                return 1
-            fi
-            read -r number modified_type <<<"$output"
-            if [[ -z $number ]]; then
-                continue
-            fi
-        fi
-        printf "\n%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%b%s%b\t%s\t%s\n" \
-            "$iso8601" "$thread_id" "$thread_state" "$comment_url" "$repo_full_name" \
-            "$unread_symbol" "$timefmt" "$repo_abbreviated" "${modified_type:-$type}" \
-            "$GREEN" "$number" "$NC" "$reason" "$title"
-    done <<<"$page"
+  local page="$1"
+  while IFS=$'\t' read -r updated_short iso8601 thread_id thread_state \
+    comment_url repo_full_name unread_symbol timefmt repo_abbreviated type url reason \
+    title; do
+    local number="" modified_type
+    if command grep -q "Discussion" <<<"$type"; then
+      number=$(process_discussion "$title" "$updated_short" "$repo_full_name") || return 1
+    elif ! command grep -q "^null" <<<"$url"; then
+      if ! output=$(process_url "$type" "$url"); then
+        return 1
+      fi
+      read -r number modified_type <<<"$output"
+      if [[ -z $number ]]; then
+        continue
+      fi
+    fi
+    printf "\n%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%b%s%b\t%s\t%s\n" \
+      "$iso8601" "$thread_id" "$thread_state" "$comment_url" "$repo_full_name" \
+      "$unread_symbol" "$timefmt" "$repo_abbreviated" "${modified_type:-$type}" \
+      "$GREEN" "$number" "$NC" "$reason" "$title"
+  done <<<"$page"
 }
 
 # Extracts and formats relevant information from a GitHub URL based on its type
 # Returns: a number and optionally a new type, or raises an error for release types
 process_url() {
-    local type="$1" url="$2"
-    local number prerelease
-    if command grep -q "Commit" <<<"$type"; then
-        # https://blog.cuviper.com/2013/11/10/how-short-can-git-abbreviate/
-        command basename "$url" | command head -c 12
-    elif command grep -q "Release" <<<"$type"; then
-        if IFS=$'\t' read -r number prerelease < <(gh_rest_api "$url" \
-            --cache=100h --jq '[.tag_name, .prerelease] | @tsv'); then
-            if "$prerelease"; then
-                echo "$number Pre-release"
-            else
-                echo "$number"
-            fi
-        else
-            # Release URLs may already be inaccessible and are therefore skipped unless in Debug
-            # mode. Since nothing will be sent, the notification will be skipped in the
-            # 'process_page' function.
-            if $GH_NOTIFY_DEBUG_MODE; then
-                die "Failed to retrieve the release information: $url"
-            fi
-        fi
+  local type="$1" url="$2"
+  local number prerelease
+  if command grep -q "Commit" <<<"$type"; then
+    # https://blog.cuviper.com/2013/11/10/how-short-can-git-abbreviate/
+    command basename "$url" | command head -c 12
+  elif command grep -q "Release" <<<"$type"; then
+    if IFS=$'\t' read -r number prerelease < <(gh_rest_api "$url" \
+      --cache=100h --jq '[.tag_name, .prerelease] | @tsv'); then
+      if "$prerelease"; then
+        echo "$number Pre-release"
+      else
+        echo "$number"
+      fi
     else
-        # Minimize gh API calls as they are time-consuming
-        echo "${url/*\//#}"
+      # Release URLs may already be inaccessible and are therefore skipped unless in Debug
+      # mode. Since nothing will be sent, the notification will be skipped in the
+      # 'process_page' function.
+      if $GH_NOTIFY_DEBUG_MODE; then
+        die "Failed to retrieve the release information: $url"
+      fi
     fi
+  else
+    # Minimize gh API calls as they are time-consuming
+    echo "${url/*\//#}"
+  fi
 }
 
 # Executes a GraphQL query for Discussion search using the provided information
 # Returns the found number or raises an error
 process_discussion() {
-    local title="$1" updated_short="$2" repo_full_name="$3"
-    local graphql_query_discussion
-    # https://docs.github.com/en/search-github/searching-on-github/searching-discussions
-    graphql_query_discussion=$'query ($filter: String!) {
+  local title="$1" updated_short="$2" repo_full_name="$3"
+  local graphql_query_discussion
+  # https://docs.github.com/en/search-github/searching-on-github/searching-discussions
+  graphql_query_discussion=$'query ($filter: String!) {
         search(query: $filter, type: DISCUSSION, first: 1) { nodes { ... on Discussion { number }}}}'
-    command gh api graphql \
-        --cache=100h \
-        --raw-field query="$graphql_query_discussion" \
-        --raw-field filter="\"$title\" in:title updated:>=$updated_short repo:$repo_full_name" \
-        --jq '.data.search.nodes | "#\(.[].number)"' || die "Failed GraphQL discussion query."
+  command gh api graphql \
+    --cache=100h \
+    --raw-field query="$graphql_query_discussion" \
+    --raw-field filter="\"$title\" in:title updated:>=$updated_short repo:$repo_full_name" \
+    --jq '.data.search.nodes | "#\(.[].number)"' || die "Failed GraphQL discussion query."
 }
 
 highlight_output() {
-    local bat_cmd
-    if command -v delta >/dev/null; then
-        # https://dandavison.github.io/delta
-        command delta --width "${FZF_PREVIEW_COLUMNS:-${COLUMNS:-100}}" --paging=never
+  local bat_cmd
+  if command -v delta >/dev/null; then
+    # https://dandavison.github.io/delta
+    command delta --width "${FZF_PREVIEW_COLUMNS:-${COLUMNS:-100}}" --paging=never
+  else
+    # Resolve 'bat' command (could be installed as 'bat' or 'batcat' depends on the OS)
+    if bat_cmd=$(command -v bat || command -v batcat); then
+      command $bat_cmd --color=always --plain --language diff --no-pager \
+        --terminal-width="${FZF_PREVIEW_COLUMNS:-${COLUMNS:-100}}"
     else
-        # Resolve 'bat' command (could be installed as 'bat' or 'batcat' depends on the OS)
-        if bat_cmd=$(command -v bat || command -v batcat); then
-            command $bat_cmd --color=always --plain --language diff --no-pager \
-                --terminal-width="${FZF_PREVIEW_COLUMNS:-${COLUMNS:-100}}"
-        else
-            command cat
-        fi
+      command cat
     fi
+  fi
 }
 
 open_in_browser() {
-    local comment_number date time repo_full_name type number unhashed_num
-    IFS=' ' read -r _ _ _ comment_number repo_full_name _ date time _ type number _ <<<"$1"
-    unhashed_num=$(command tr -d "#" <<<"$number")
-    case "$type" in
-        CheckSuite)
-            "$python_executable" -m webbrowser "https://github.com/${repo_full_name}/actions"
-            ;;
-        Commit)
-            command gh browse "$number" --repo "$repo_full_name"
-            ;;
-        Discussion)
-            "$python_executable" -m webbrowser "https://github.com/${repo_full_name}/discussions/${unhashed_num}"
-            ;;
-        Issue | PullRequest)
-            if [[ $comment_number == "$unhashed_num" || $comment_number == null ]]; then
-                command gh issue view "$number" --web --repo "$repo_full_name"
-            else
-                "$python_executable" -m webbrowser "https://github.com/${repo_full_name}/issues/${unhashed_num}#issuecomment-${comment_number}"
-            fi
-            ;;
-        Pre-release | Release)
-            command gh release view "$number" --web --repo "$repo_full_name"
-            ;;
-        *)
-            command gh repo view --web "$repo_full_name"
-            ;;
-    esac
+  local comment_number date time repo_full_name type number unhashed_num
+  IFS=' ' read -r _ _ _ comment_number repo_full_name _ date time _ type number _ <<<"$1"
+  unhashed_num=$(command tr -d "#" <<<"$number")
+  case "$type" in
+    CheckSuite)
+      "$python_executable" -m webbrowser "https://github.com/${repo_full_name}/actions"
+      ;;
+    Commit)
+      command gh browse "$number" --repo "$repo_full_name"
+      ;;
+    Discussion)
+      "$python_executable" -m webbrowser "https://github.com/${repo_full_name}/discussions/${unhashed_num}"
+      ;;
+    Issue | PullRequest)
+      if [[ $comment_number == "$unhashed_num" || $comment_number == null ]]; then
+        command gh issue view "$number" --web --repo "$repo_full_name"
+      else
+        "$python_executable" -m webbrowser "https://github.com/${repo_full_name}/issues/${unhashed_num}#issuecomment-${comment_number}"
+      fi
+      ;;
+    Pre-release | Release)
+      command gh release view "$number" --web --repo "$repo_full_name"
+      ;;
+    *)
+      command gh repo view --web "$repo_full_name"
+      ;;
+  esac
 }
 
 view_notification() {
-    local all_comments date time repo_full_name type number
-    if [[ $1 == "--all_comments" ]]; then
-        shift
-        all_comments="1"
-    fi
-    IFS=' ' read -r _ _ _ _ repo_full_name _ date time _ type number _ <<<"$1"
-    printf "[%s %s - %s]\n" "$date" "$time" "$type"
-    case "$type" in
-        Commit)
-            gh_rest_api --cache=24h "repos/$repo_full_name/commits/$number" \
-                --jq '.files[].patch' | highlight_output
-            ;;
-        Issue)
-            # use the '--comments' flag only if 'all_comments' exists and is not null
-            command gh issue view "$number" --repo "$repo_full_name" ${all_comments:+"--comments"}
-            ;;
-        PullRequest)
-            command gh pr view "$number" --repo "$repo_full_name" ${all_comments:+"--comments"}
-            ;;
-        Pre-release | Release)
-            command gh release view "$number" --repo "$repo_full_name"
-            ;;
-        *)
-            printf "Seeing the preview of a %b%s%b is not supported.\n" "$WHITE_BOLD" "$type" "$NC"
-            ;;
-    esac
+  local all_comments date time repo_full_name type number
+  if [[ $1 == "--all_comments" ]]; then
+    shift
+    all_comments="1"
+  fi
+  IFS=' ' read -r _ _ _ _ repo_full_name _ date time _ type number _ <<<"$1"
+  printf "[%s %s - %s]\n" "$date" "$time" "$type"
+  case "$type" in
+    Commit)
+      gh_rest_api --cache=24h "repos/$repo_full_name/commits/$number" \
+        --jq '.files[].patch' | highlight_output
+      ;;
+    Issue)
+      # use the '--comments' flag only if 'all_comments' exists and is not null
+      command gh issue view "$number" --repo "$repo_full_name" ${all_comments:+"--comments"}
+      ;;
+    PullRequest)
+      command gh pr view "$number" --repo "$repo_full_name" ${all_comments:+"--comments"}
+      ;;
+    Pre-release | Release)
+      command gh release view "$number" --repo "$repo_full_name"
+      ;;
+    *)
+      printf "Seeing the preview of a %b%s%b is not supported.\n" "$WHITE_BOLD" "$type" "$NC"
+      ;;
+  esac
 }
 
 view_in_pager() {
-    local repo_full_name type number unhashed_num total_comments
-    local issue_or_pr="issues"
-    IFS=' ' read -r _ _ _ _ repo_full_name _ _ _ _ type number _ <<<"$1"
-    declare -a less_args
-    # The long option (--+…) for resetting the option to its default setting is broken in less
-    # version 643, so use only the short version. Ref: https://github.com/gwsw/less/issues/452
-    less_args=(
-        "--clear-screen"      # to be painted from the top line down
-        "--RAW-CONTROL-CHARS" # Raw color codes in output (don't remove color codes)
-        "-+F"                 # disable exiting if the entire file can be displayed on the screen
-        "-+X"                 # reset screen clearing prevention
-    )
+  local repo_full_name type number unhashed_num total_comments
+  local issue_or_pr="issues"
+  IFS=' ' read -r _ _ _ _ repo_full_name _ _ _ _ type number _ <<<"$1"
+  declare -a less_args
+  # The long option (--+…) for resetting the option to its default setting is broken in less
+  # version 643, so use only the short version. Ref: https://github.com/gwsw/less/issues/452
+  less_args=(
+    "--clear-screen"      # to be painted from the top line down
+    "--RAW-CONTROL-CHARS" # Raw color codes in output (don't remove color codes)
+    "-+F"                 # disable exiting if the entire file can be displayed on the screen
+    "-+X"                 # reset screen clearing prevention
+  )
 
-    # Move to the end of the file only for Issues or PRs that have comments.
-    case "$type" in
-        Issue | PullRequest)
-            unhashed_num=$(command tr -d "#" <<<"$number")
-            [[ $type == "PullRequest" ]] && issue_or_pr="pulls"
+  # Move to the end of the file only for Issues or PRs that have comments.
+  case "$type" in
+    Issue | PullRequest)
+      unhashed_num=$(command tr -d "#" <<<"$number")
+      [[ $type == "PullRequest" ]] && issue_or_pr="pulls"
 
-            if total_comments=$(gh_rest_api \
-                "repos/${repo_full_name}/${issue_or_pr}/${unhashed_num}" \
-                --jq '.comments' 2>/dev/null); then
-                if ((total_comments > 0)); then
-                    less_args+=(
-                        "+G" # start at the end of the file
-                    )
-                fi
-            fi
-            ;;
-    esac
+      if total_comments=$(gh_rest_api \
+        "repos/${repo_full_name}/${issue_or_pr}/${unhashed_num}" \
+        --jq '.comments' 2>/dev/null); then
+        if ((total_comments > 0)); then
+          less_args+=(
+            "+G" # start at the end of the file
+          )
+        fi
+      fi
+      ;;
+  esac
 
-    # Redirect 'less' output to '/dev/tty' to interact with the terminal when in command
-    # substitution '$()'. Ref: https://github.com/junegunn/fzf/issues/1360#issuecomment-966054123
-    view_notification --all_comments "$1" | command less "${less_args[@]}" >/dev/tty
+  # Redirect 'less' output to '/dev/tty' to interact with the terminal when in command
+  # substitution '$()'. Ref: https://github.com/junegunn/fzf/issues/1360#issuecomment-966054123
+  view_notification --all_comments "$1" | command less "${less_args[@]}" >/dev/tty
 }
 
 # Use this only when the list isn't filtered to avoid marking not displayed notifications as read.
@@ -498,307 +498,307 @@ view_in_pager() {
 # the emptiness of '{q}' and any changes to `FINAL_MSG`, specifically if it remains "All caught up".
 # TODO: The 2nd check is hacky; seek a cleaner solution with minimal code addition.
 mark_all_read() {
-    local iso_time
-    IFS=' ' read -r iso_time _ <<<"$1"
-    # https://docs.github.com/en/rest/activity/notifications#mark-notifications-as-read
-    gh_rest_api --silent --method PUT notifications \
-        --raw-field last_read_at="$iso_time" --field read=true
+  local iso_time
+  IFS=' ' read -r iso_time _ <<<"$1"
+  # https://docs.github.com/en/rest/activity/notifications#mark-notifications-as-read
+  gh_rest_api --silent --method PUT notifications \
+    --raw-field last_read_at="$iso_time" --field read=true
 }
 
 mark_individual_read() {
-    local thread_id thread_state
-    declare -a array_threads=()
-    while IFS=' ' read -r _ thread_id thread_state _; do
-        if [[ $thread_state == "UNREAD" ]]; then
-            array_threads+=("$thread_id")
-        fi
-    done <"$1"
-
-    if [[ ${#array_threads[@]} -eq 1 ]]; then
-        gh_rest_api --silent --method PATCH "notifications/threads/${array_threads[0]}" ||
-            die "Failed to mark notifications as read."
-    elif [[ ${#array_threads[@]} -gt 1 ]]; then
-        # If there is a large number of threads to be processed, the number of background jobs can
-        # put pressure on the PC. Additionally, too many requests in short succession can trigger a
-        # rate limit by GitHub. Therefore, we process the threads in batches of 30, with a short
-        # delay of 0.3 seconds between each batch. This approach worked well in my tests with 200
-        # notifications.
-        for ((i = 0; i < ${#array_threads[@]}; i += 30)); do
-            for j in "${array_threads[@]:i:30}"; do
-                # Running commands in the background of a script can cause it to hang, especially if
-                # the command outputs to stdout: https://tldp.org/LDP/abs/html/x9644.html#WAITHANG
-                gh_rest_api --silent --method PATCH "notifications/threads/${j}" &>/dev/null &
-            done
-            command sleep 0.3
-        done
+  local thread_id thread_state
+  declare -a array_threads=()
+  while IFS=' ' read -r _ thread_id thread_state _; do
+    if [[ $thread_state == "UNREAD" ]]; then
+      array_threads+=("$thread_id")
     fi
+  done <"$1"
+
+  if [[ ${#array_threads[@]} -eq 1 ]]; then
+    gh_rest_api --silent --method PATCH "notifications/threads/${array_threads[0]}" ||
+      die "Failed to mark notifications as read."
+  elif [[ ${#array_threads[@]} -gt 1 ]]; then
+    # If there is a large number of threads to be processed, the number of background jobs can
+    # put pressure on the PC. Additionally, too many requests in short succession can trigger a
+    # rate limit by GitHub. Therefore, we process the threads in batches of 30, with a short
+    # delay of 0.3 seconds between each batch. This approach worked well in my tests with 200
+    # notifications.
+    for ((i = 0; i < ${#array_threads[@]}; i += 30)); do
+      for j in "${array_threads[@]:i:30}"; do
+        # Running commands in the background of a script can cause it to hang, especially if
+        # the command outputs to stdout: https://tldp.org/LDP/abs/html/x9644.html#WAITHANG
+        gh_rest_api --silent --method PATCH "notifications/threads/${j}" &>/dev/null &
+      done
+      command sleep 0.3
+    done
+  fi
 }
 
 select_notif() {
-    local output expected_key selected_line repo_full_name type num
-    # Export functions to child processes. 'fzf' executes commands with $SHELL -c; to ensure
-    # compatibility when the default shell is not bash, set 'SHELL="$(which bash)"'.
-    export -f print_help_text print_notifs get_notifs
-    export -f process_page process_discussion process_url gh_rest_api
-    export -f highlight_output open_in_browser view_notification view_in_pager
-    export -f mark_all_read mark_individual_read
-    # The 'die' function is not exported because 'fzf' warns you about the error in
-    # a failed 'print_notifs' call, but does not display the message.
+  local output expected_key selected_line repo_full_name type num
+  # Export functions to child processes. 'fzf' executes commands with $SHELL -c; to ensure
+  # compatibility when the default shell is not bash, set 'SHELL="$(which bash)"'.
+  export -f print_help_text print_notifs get_notifs
+  export -f process_page process_discussion process_url gh_rest_api
+  export -f highlight_output open_in_browser view_notification view_in_pager
+  export -f mark_all_read mark_individual_read
+  # The 'die' function is not exported because 'fzf' warns you about the error in
+  # a failed 'print_notifs' call, but does not display the message.
 
-    # See the man page (man fzf) for an explanation of the arguments.
+  # See the man page (man fzf) for an explanation of the arguments.
 
-    # Reason for using TERM=dumb before 'gh' calls inside 'execute(...)':
-    #
-    # https://github.com/junegunn/fzf/discussions/4467
-    #
-    # [23/May/2024] fzf 'execute' action provides the command with a full interactive terminal
-    # (TTY). Newer versions of 'gh' and its dependencies unconditionally query this TTY for features
-    # (e.g., background color), even for non-interactive commands. This causes the terminal's
-    # response (escape codes) to leak into the output.
-    #
-    # This issue does not occur with 'execute-silent', which does not provide a TTY, or when piping
-    # gh into cat. Still seems buggy and 'gh' should provide a env varibale for disabling.
-    #
-    # The problematic behavior in 'gh' was introduced in two key stages:
-    # 1. [21/Mar/2025] Thematic Headers (https://github.com/cli/cli/commit/6355e54e): 'gh' itself
-    #    began querying the terminal. This could be suppressed with 'NO_COLOR=1'.
-    #
-    # 2. [31/Mar/2025] Accessible Prompter (https://github.com/cli/cli/commit/202c1ad1): A new
-    #    dependency ('bubbletea') was added. It performs its own terminal query during its 'init()'
-    #    phase, which cannot be disabled by 'gh'-specific flags like 'NO_COLOR'. Setting 'TERM=dumb'
-    #    does.
-    output=$(
-        SHELL="$(which bash)" FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS-} ${GH_NOTIFY_FZF_OPTS-}" command fzf \
-            --ansi \
-            --bind "zero:become:" \
-            --bind "${GH_NOTIFY_RESIZE_PREVIEW_KEY}:change-preview-window(75%:nohidden|75%:down:nohidden:border-top|nohidden)" \
-            --bind "change:first+unbind:zero" \
-            --bind "${GH_NOTIFY_MARK_ALL_READ_KEY}:select-all+execute-silent(if [[ -z {q} && \$FINAL_MSG =~ 'All caught up' ]]; then mark_all_read {}; else mark_individual_read {+f}; fi)+reload:print_notifs || true" \
-            --bind "${GH_NOTIFY_OPEN_BROWSER_KEY}:execute-silent(mark_individual_read {f}; open_in_browser {})+transform:[[ {3} == 'UNREAD' ]] && echo 'reload:print_notifs || true'" \
-            --bind "${GH_NOTIFY_VIEW_DIFF_KEY}:toggle-preview+change-preview:if command grep -q PullRequest <<<{10}; then command gh pr diff {11} --repo {5}  | highlight_output; else view_notification {}; fi" \
-            --bind "${GH_NOTIFY_VIEW_PATCH_KEY}:toggle-preview+change-preview:if command grep -q PullRequest <<<{10}; then command gh pr diff {11} --patch --repo {5} | highlight_output; else view_notification {}; fi" \
-            --bind "${GH_NOTIFY_RELOAD_KEY}:reload:print_notifs || true" \
-            --bind "${GH_NOTIFY_MARK_READ_KEY}:execute-silent(mark_individual_read {+f})+reload:print_notifs || true" \
-            --bind "${GH_NOTIFY_TOGGLE_KEY}:toggle+down" \
-            --bind "${GH_NOTIFY_VIEW_KEY}:execute(TERM=dumb mark_individual_read {f}; view_in_pager {})+transform:[[ {3} == 'UNREAD' ]] && echo 'reload:print_notifs || true'" \
-            --bind "${GH_NOTIFY_TOGGLE_PREVIEW_KEY}:toggle-preview+change-preview:view_notification {}" \
-            --bind "${GH_NOTIFY_TOGGLE_HELP_KEY}:toggle-preview+change-preview:print_help_text" \
-            --border horizontal \
-            --color "border:dim" \
-            --color "header:green:italic:dim" \
-            --color "prompt:80,info:40" \
-            --delimiter '\s+' \
-            --ellipsis '…' \
-            --expect "esc,${GH_NOTIFY_COMMENT_KEY}" \
-            --freeze-left 4 \
-            --header "${GH_NOTIFY_TOGGLE_HELP_KEY} help · esc quit" \
-            --info=inline \
-            --multi \
-            --preview "view_notification {}" \
-            --preview-window "default:wrap:${preview_window_visibility}:60%:right:border-left" \
-            --no-print-query \
-            --prompt "GitHub Notifications > " \
-            --reverse \
-            --with-nth 6.. <<<"$1"
-    )
-    [[ -z $output ]] && {
-        echo "$FINAL_MSG"
-        exit 0
-    }
-    # actions that close fzf are defined below
-    # 1st line ('--expect'): the actual key
-    # 2nd line: the selected line when the user pressed the key
-    expected_key="$(command sed q <<<"$output")"
-    selected_line="$(command sed '1d' <<<"$output")"
-    if [[ $(sed -n '$=' <<<"$selected_line") -gt 1 && $expected_key != "esc" ]]; then
-        die "Please select only one notification for this operation."
-    fi
-    IFS=' ' read -r _ thread_id thread_state _ repo_full_name _ _ _ _ type num _ <<<"$selected_line"
-    [[ -z $type ]] && exit 0
-    case "$expected_key" in
-        esc)
-            # quit with exit code 0; 'fzf' returns 130 by default
-            exit 0
-            ;;
-        "${GH_NOTIFY_COMMENT_KEY}")
-            if command grep -qE "Issue|PullRequest" <<<"$type"; then
-                command gh issue comment "$num" --repo "$repo_full_name"
-                # The function requires input in a file-like format
-                mark_individual_read <(echo "$selected_line")
-            else
-                printf "Writing comments is only supported for %bIssues%b and %bPullRequests%b.\n" \
-                    "$WHITE_BOLD" "$NC" "$WHITE_BOLD" "$NC"
-                exit 1
-            fi
-            ;;
-        *)
-            die "Unexpected key '$expected_key'"
-            ;;
-    esac
+  # Reason for using TERM=dumb before 'gh' calls inside 'execute(...)':
+  #
+  # https://github.com/junegunn/fzf/discussions/4467
+  #
+  # [23/May/2024] fzf 'execute' action provides the command with a full interactive terminal
+  # (TTY). Newer versions of 'gh' and its dependencies unconditionally query this TTY for features
+  # (e.g., background color), even for non-interactive commands. This causes the terminal's
+  # response (escape codes) to leak into the output.
+  #
+  # This issue does not occur with 'execute-silent', which does not provide a TTY, or when piping
+  # gh into cat. Still seems buggy and 'gh' should provide a env varibale for disabling.
+  #
+  # The problematic behavior in 'gh' was introduced in two key stages:
+  # 1. [21/Mar/2025] Thematic Headers (https://github.com/cli/cli/commit/6355e54e): 'gh' itself
+  #    began querying the terminal. This could be suppressed with 'NO_COLOR=1'.
+  #
+  # 2. [31/Mar/2025] Accessible Prompter (https://github.com/cli/cli/commit/202c1ad1): A new
+  #    dependency ('bubbletea') was added. It performs its own terminal query during its 'init()'
+  #    phase, which cannot be disabled by 'gh'-specific flags like 'NO_COLOR'. Setting 'TERM=dumb'
+  #    does.
+  output=$(
+    SHELL="$(which bash)" FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS-} ${GH_NOTIFY_FZF_OPTS-}" command fzf \
+      --ansi \
+      --bind "zero:become:" \
+      --bind "${GH_NOTIFY_RESIZE_PREVIEW_KEY}:change-preview-window(75%:nohidden|75%:down:nohidden:border-top|nohidden)" \
+      --bind "change:first+unbind:zero" \
+      --bind "${GH_NOTIFY_MARK_ALL_READ_KEY}:select-all+execute-silent(if [[ -z {q} && \$FINAL_MSG =~ 'All caught up' ]]; then mark_all_read {}; else mark_individual_read {+f}; fi)+reload:print_notifs || true" \
+      --bind "${GH_NOTIFY_OPEN_BROWSER_KEY}:execute-silent(mark_individual_read {f}; open_in_browser {})+transform:[[ {3} == 'UNREAD' ]] && echo 'reload:print_notifs || true'" \
+      --bind "${GH_NOTIFY_VIEW_DIFF_KEY}:toggle-preview+change-preview:if command grep -q PullRequest <<<{10}; then command gh pr diff {11} --repo {5}  | highlight_output; else view_notification {}; fi" \
+      --bind "${GH_NOTIFY_VIEW_PATCH_KEY}:toggle-preview+change-preview:if command grep -q PullRequest <<<{10}; then command gh pr diff {11} --patch --repo {5} | highlight_output; else view_notification {}; fi" \
+      --bind "${GH_NOTIFY_RELOAD_KEY}:reload:print_notifs || true" \
+      --bind "${GH_NOTIFY_MARK_READ_KEY}:execute-silent(mark_individual_read {+f})+reload:print_notifs || true" \
+      --bind "${GH_NOTIFY_TOGGLE_KEY}:toggle+down" \
+      --bind "${GH_NOTIFY_VIEW_KEY}:execute(TERM=dumb mark_individual_read {f}; view_in_pager {})+transform:[[ {3} == 'UNREAD' ]] && echo 'reload:print_notifs || true'" \
+      --bind "${GH_NOTIFY_TOGGLE_PREVIEW_KEY}:toggle-preview+change-preview:view_notification {}" \
+      --bind "${GH_NOTIFY_TOGGLE_HELP_KEY}:toggle-preview+change-preview:print_help_text" \
+      --border horizontal \
+      --color "border:dim" \
+      --color "header:green:italic:dim" \
+      --color "prompt:80,info:40" \
+      --delimiter '\s+' \
+      --ellipsis '…' \
+      --expect "esc,${GH_NOTIFY_COMMENT_KEY}" \
+      --freeze-left 4 \
+      --header "${GH_NOTIFY_TOGGLE_HELP_KEY} help · esc quit" \
+      --info=inline \
+      --multi \
+      --preview "view_notification {}" \
+      --preview-window "default:wrap:${preview_window_visibility}:60%:right:border-left" \
+      --no-print-query \
+      --prompt "GitHub Notifications > " \
+      --reverse \
+      --with-nth 6.. <<<"$1"
+  )
+  [[ -z $output ]] && {
+    echo "$FINAL_MSG"
+    exit 0
+  }
+  # actions that close fzf are defined below
+  # 1st line ('--expect'): the actual key
+  # 2nd line: the selected line when the user pressed the key
+  expected_key="$(command sed q <<<"$output")"
+  selected_line="$(command sed '1d' <<<"$output")"
+  if [[ $(sed -n '$=' <<<"$selected_line") -gt 1 && $expected_key != "esc" ]]; then
+    die "Please select only one notification for this operation."
+  fi
+  IFS=' ' read -r _ thread_id thread_state _ repo_full_name _ _ _ _ type num _ <<<"$selected_line"
+  [[ -z $type ]] && exit 0
+  case "$expected_key" in
+    esc)
+      # quit with exit code 0; 'fzf' returns 130 by default
+      exit 0
+      ;;
+    "${GH_NOTIFY_COMMENT_KEY}")
+      if command grep -qE "Issue|PullRequest" <<<"$type"; then
+        command gh issue comment "$num" --repo "$repo_full_name"
+        # The function requires input in a file-like format
+        mark_individual_read <(echo "$selected_line")
+      else
+        printf "Writing comments is only supported for %bIssues%b and %bPullRequests%b.\n" \
+          "$WHITE_BOLD" "$NC" "$WHITE_BOLD" "$NC"
+        exit 1
+      fi
+      ;;
+    *)
+      die "Unexpected key '$expected_key'"
+      ;;
+  esac
 }
 
 # This function validates the version of a tool.
 check_version() {
-    local tool=$1 threshold=$2 on_error=${3:-die}
-    local user_version user_version_part index
-    declare -a ver_parts threshold_parts
-    user_version=$(command $tool --version 2>&1 |
-        command grep --color=never --extended-regexp --only-matching --regexp='[0-9]+(\.[0-9]+)*' |
-        command sed q)
+  local tool=$1 threshold=$2 on_error=${3:-die}
+  local user_version user_version_part index
+  declare -a ver_parts threshold_parts
+  user_version=$(command $tool --version 2>&1 |
+    command grep --color=never --extended-regexp --only-matching --regexp='[0-9]+(\.[0-9]+)*' |
+    command sed q)
 
-    IFS='.' read -ra ver_parts <<<"$user_version"
-    IFS='.' read -ra threshold_parts <<<"$threshold"
+  IFS='.' read -ra ver_parts <<<"$user_version"
+  IFS='.' read -ra threshold_parts <<<"$threshold"
 
-    for index in "${!threshold_parts[@]}"; do
-        user_version_part=${ver_parts[index]:-0}
-        if ((user_version_part < threshold_parts[index])); then
-            $on_error "Your '$tool' version '$user_version' is insufficient. The minimum required version is '$threshold'."
-        elif ((user_version_part > threshold_parts[index])); then
-            break
-        fi
-    done
+  for index in "${!threshold_parts[@]}"; do
+    user_version_part=${ver_parts[index]:-0}
+    if ((user_version_part < threshold_parts[index])); then
+      $on_error "Your '$tool' version '$user_version' is insufficient. The minimum required version is '$threshold'."
+    elif ((user_version_part > threshold_parts[index])); then
+      break
+    fi
+  done
 }
 
 update_subscription() {
-    local graphql_query_resource=$'query ($url_input: URI!) {resource(url: $url_input) { ... on Subscribable { __typename id viewerCanSubscribe viewerSubscription }}}'
-    local graphql_mutation_update_subscription=$'mutation ($updated_state: SubscriptionState!, $node_id: ID!) { updateSubscription(input: {state: $updated_state, subscribableId: $node_id}) { subscribable { viewerSubscription }}}'
-    local graphql_query_subscribable=$'{ __type(name: "Subscribable") { possibleTypes { name }}}'
-    local requested_state updated_state update_text possibleTypes
-    if IFS=$'\t' read -r object_type node_id viewer_can_subscribe viewer_subscription < <(command gh api graphql \
-        --raw-field url_input="$update_subscription_url" \
-        --raw-field query="$graphql_query_resource" \
-        --jq '.data.resource | map(.) | @tsv'); then
-        if [[ -z $object_type ]]; then
-            die "Your input appears to be an invalid URL: '$update_subscription_url'."
-        elif [[ $viewer_subscription != "SUBSCRIBED" && ! $viewer_can_subscribe ]]; then
-            die "You are not allowed to subscribe to this '$object_type'."
-        fi
-        # The enumValues for the 'SubscriptionState' are:
-        #"UNSUBSCRIBED" - "The User is only notified when participating or @mentioned."
-        #"SUBSCRIBED" - "The User is notified of all conversations."
-        #"IGNORED" - "The User is never notified."
-        case "$viewer_subscription" in
-            SUBSCRIBED)
-                updated_state="UNSUBSCRIBED"
-                update_text="Notifications disabled for this '$object_type'."
-                ;;
-            IGNORED | UNSUBSCRIBED | "")
-                # Empty value happens when a user makes a 'Custom' selection,
-                # e.g. watching only Releases on the repo, viewer_subscription
-                # becomes null for any URL associated with the entire repo
-                updated_state="SUBSCRIBED"
-                update_text="Notifications enabled for this '$object_type'."
-                ;;
-            *)
-                die "The queried value for the current status is unknown: '$viewer_subscription'."
-                ;;
-        esac
-
-        # NOTE: For example, if you "UNSUBSCRIBE" from an Issue but you are still
-        # "SUBSCRIBED" to the Repository where the Issue resides, the Issue's
-        # subscription status is automatically set to "IGNORED" and can never be set
-        # to "UNSUBSCRIBED" as long as you are "SUBSCRIBED" to the Repository. This is
-        # a design decision by GitHub.
-        requested_state=$updated_state
-        updated_state=$(command gh api graphql \
-            --raw-field updated_state="$updated_state" \
-            --raw-field node_id="$node_id" \
-            --raw-field query="$graphql_mutation_update_subscription" \
-            --jq '.data.updateSubscription.subscribable.viewerSubscription') ||
-            die "Failed GraphQL mutation to update the subscription status."
-        [[ -z $updated_state ]] && updated_state="${requested_state}"
-        echo "The list of all your subscriptions is only available via the Web UI."
-        printf "%bhttps://github.com/notifications/subscriptions%b\n\n" "$DARK_GRAY" "$NC"
-        printf "%b%s%b: %b%s%b\n" "$GREEN" "$updated_state" "$NC" "$WHITE_BOLD" "$update_text" "$NC"
-        printf "%b%s%b\n" "$DARK_GRAY" "$update_subscription_url" "$NC"
-        exit 0
-    else
-        possibleTypes=$(command gh api graphql --raw-field query="$graphql_query_subscribable" \
-            --jq '.data.__type.possibleTypes | map(.name) | join(", ")' ||
-            die "Failed GraphQL query for possibleTypes.")
-        die "$(
-            printf "The URL is not valid for subscription.\n"
-            printf "Valid subscription types: %b%s%b\n" "$WHITE_BOLD" "$possibleTypes" "$NC"
-        )"
+  local graphql_query_resource=$'query ($url_input: URI!) {resource(url: $url_input) { ... on Subscribable { __typename id viewerCanSubscribe viewerSubscription }}}'
+  local graphql_mutation_update_subscription=$'mutation ($updated_state: SubscriptionState!, $node_id: ID!) { updateSubscription(input: {state: $updated_state, subscribableId: $node_id}) { subscribable { viewerSubscription }}}'
+  local graphql_query_subscribable=$'{ __type(name: "Subscribable") { possibleTypes { name }}}'
+  local requested_state updated_state update_text possibleTypes
+  if IFS=$'\t' read -r object_type node_id viewer_can_subscribe viewer_subscription < <(command gh api graphql \
+    --raw-field url_input="$update_subscription_url" \
+    --raw-field query="$graphql_query_resource" \
+    --jq '.data.resource | map(.) | @tsv'); then
+    if [[ -z $object_type ]]; then
+      die "Your input appears to be an invalid URL: '$update_subscription_url'."
+    elif [[ $viewer_subscription != "SUBSCRIBED" && ! $viewer_can_subscribe ]]; then
+      die "You are not allowed to subscribe to this '$object_type'."
     fi
+    # The enumValues for the 'SubscriptionState' are:
+    #"UNSUBSCRIBED" - "The User is only notified when participating or @mentioned."
+    #"SUBSCRIBED" - "The User is notified of all conversations."
+    #"IGNORED" - "The User is never notified."
+    case "$viewer_subscription" in
+      SUBSCRIBED)
+        updated_state="UNSUBSCRIBED"
+        update_text="Notifications disabled for this '$object_type'."
+        ;;
+      IGNORED | UNSUBSCRIBED | "")
+        # Empty value happens when a user makes a 'Custom' selection,
+        # e.g. watching only Releases on the repo, viewer_subscription
+        # becomes null for any URL associated with the entire repo
+        updated_state="SUBSCRIBED"
+        update_text="Notifications enabled for this '$object_type'."
+        ;;
+      *)
+        die "The queried value for the current status is unknown: '$viewer_subscription'."
+        ;;
+    esac
+
+    # NOTE: For example, if you "UNSUBSCRIBE" from an Issue but you are still
+    # "SUBSCRIBED" to the Repository where the Issue resides, the Issue's
+    # subscription status is automatically set to "IGNORED" and can never be set
+    # to "UNSUBSCRIBED" as long as you are "SUBSCRIBED" to the Repository. This is
+    # a design decision by GitHub.
+    requested_state=$updated_state
+    updated_state=$(command gh api graphql \
+      --raw-field updated_state="$updated_state" \
+      --raw-field node_id="$node_id" \
+      --raw-field query="$graphql_mutation_update_subscription" \
+      --jq '.data.updateSubscription.subscribable.viewerSubscription') ||
+      die "Failed GraphQL mutation to update the subscription status."
+    [[ -z $updated_state ]] && updated_state="${requested_state}"
+    echo "The list of all your subscriptions is only available via the Web UI."
+    printf "%bhttps://github.com/notifications/subscriptions%b\n\n" "$DARK_GRAY" "$NC"
+    printf "%b%s%b: %b%s%b\n" "$GREEN" "$updated_state" "$NC" "$WHITE_BOLD" "$update_text" "$NC"
+    printf "%b%s%b\n" "$DARK_GRAY" "$update_subscription_url" "$NC"
+    exit 0
+  else
+    possibleTypes=$(command gh api graphql --raw-field query="$graphql_query_subscribable" \
+      --jq '.data.__type.possibleTypes | map(.name) | join(", ")' ||
+      die "Failed GraphQL query for possibleTypes.")
+    die "$(
+      printf "The URL is not valid for subscription.\n"
+      printf "Valid subscription types: %b%s%b\n" "$WHITE_BOLD" "$possibleTypes" "$NC"
+    )"
+  fi
 }
 
 main() {
-    local python_version notifs
-    # CLI Options
-    while getopts 'e:f:n:u:pawsrh' flag; do
-        case "${flag}" in
-            e)
-                FINAL_MSG="No results found."
-                exclusion_string="${OPTARG}"
-                ;;
-            f)
-                FINAL_MSG="No results found."
-                filter_string="${OPTARG}"
-                ;;
-            n) num_notifications="${OPTARG}" ;;
-            p) only_participating_flag=true ;;
-            u) update_subscription_url="${OPTARG}" ;;
-            a) include_all_flag=true ;;
-            w) preview_window_visibility='nohidden' ;;
-            s) print_static_flag=true ;;
-            r) mark_read_flag=true ;;
-            h)
-                print_help_text
-                exit 0
-                ;;
-            *)
-                die "see 'gh notify -h' for help"
-                ;;
-        esac
-    done
-
-    if ! command -v gh >/dev/null; then
-        die "install 'gh'"
-    fi
-
-    if [[ -n $update_subscription_url ]]; then
-        update_subscription
-    fi
-
-    if $mark_read_flag; then
-        if [[ $FINAL_MSG =~ 'All caught up' ]]; then
-            mark_all_read "" || die "Failed to mark notifications as read."
-            echo "All notifications have been marked as read."
-        else
-            die "Can't mark all notifications as read when either the '-e' or '-f' flag was used, as it would also mark notifications as read that are filtered out."
-        fi
+  local python_version notifs
+  # CLI Options
+  while getopts 'e:f:n:u:pawsrh' flag; do
+    case "${flag}" in
+      e)
+        FINAL_MSG="No results found."
+        exclusion_string="${OPTARG}"
+        ;;
+      f)
+        FINAL_MSG="No results found."
+        filter_string="${OPTARG}"
+        ;;
+      n) num_notifications="${OPTARG}" ;;
+      p) only_participating_flag=true ;;
+      u) update_subscription_url="${OPTARG}" ;;
+      a) include_all_flag=true ;;
+      w) preview_window_visibility='nohidden' ;;
+      s) print_static_flag=true ;;
+      r) mark_read_flag=true ;;
+      h)
+        print_help_text
         exit 0
-    fi
+        ;;
+      *)
+        die "see 'gh notify -h' for help"
+        ;;
+    esac
+  done
 
-    if ! $print_static_flag; then
-        for python_version in python python3; do
-            if command -v $python_version >/dev/null; then
-                python_executable=$python_version
-                break
-            fi
-        done
-        if [[ -z $python_executable ]]; then
-            die "install 'python' or use the -s flag"
-        fi
+  if ! command -v gh >/dev/null; then
+    die "install 'gh'"
+  fi
 
-        if ! command -v fzf >/dev/null; then
-            die "install 'fzf' or use the -s flag"
-        fi
-        check_version fzf "$MIN_FZF_VERSION"
-    fi
+  if [[ -n $update_subscription_url ]]; then
+    update_subscription
+  fi
 
-    notifs="$(print_notifs)"
-    if [[ -z $notifs ]]; then
-        echo "$FINAL_MSG"
-        exit 0
-    elif ! $print_static_flag; then
-        select_notif "$notifs"
+  if $mark_read_flag; then
+    if [[ $FINAL_MSG =~ 'All caught up' ]]; then
+      mark_all_read "" || die "Failed to mark notifications as read."
+      echo "All notifications have been marked as read."
     else
-        # remove unimportant elements from the static display
-        # '[[:blank:]]' matches horizontal whitespace characters (spaces/ tabs)
-        command sed -E 's/^([^[:blank:]]+[[:blank:]]+){5}//' <<<"$notifs"
+      die "Can't mark all notifications as read when either the '-e' or '-f' flag was used, as it would also mark notifications as read that are filtered out."
     fi
+    exit 0
+  fi
+
+  if ! $print_static_flag; then
+    for python_version in python python3; do
+      if command -v $python_version >/dev/null; then
+        python_executable=$python_version
+        break
+      fi
+    done
+    if [[ -z $python_executable ]]; then
+      die "install 'python' or use the -s flag"
+    fi
+
+    if ! command -v fzf >/dev/null; then
+      die "install 'fzf' or use the -s flag"
+    fi
+    check_version fzf "$MIN_FZF_VERSION"
+  fi
+
+  notifs="$(print_notifs)"
+  if [[ -z $notifs ]]; then
+    echo "$FINAL_MSG"
+    exit 0
+  elif ! $print_static_flag; then
+    select_notif "$notifs"
+  else
+    # remove unimportant elements from the static display
+    # '[[:blank:]]' matches horizontal whitespace characters (spaces/ tabs)
+    command sed -E 's/^([^[:blank:]]+[[:blank:]]+){5}//' <<<"$notifs"
+  fi
 }
 
 ###############################################################################

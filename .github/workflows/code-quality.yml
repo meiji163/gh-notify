@@ -10,14 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Spell Check
-        # https://github.com/crate-ci/typos
-        uses: crate-ci/typos@master
-      - name: Shell and shfmt Check
-        # https://github.com/luizm/action-sh-checker
-        uses: luizm/action-sh-checker@master
+      - uses: crate-ci/typos@master
+      - uses: luizm/action-sh-checker@master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SHFMT_OPTS: --simplify --indent 4 --case-indent
+          SHFMT_OPTS: --simplify --indent 2 --case-indent
         with:
           sh_checker_comment: true
