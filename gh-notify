@@ -318,9 +318,7 @@ process_page() {
     comment_url repo_full_name unread_symbol timefmt repo_abbreviated type url reason \
     title; do
     local number="" modified_type
-    if command grep -q "Discussion" <<<"$type"; then
-      number=$(process_discussion "$title" "$updated_short" "$repo_full_name") || return 1
-    elif ! command grep -q "^null" <<<"$url"; then
+    if ! command grep -q "^null" <<<"$url"; then
       if ! output=$(process_url "$type" "$url"); then
         return 1
       fi
@@ -364,21 +362,6 @@ process_url() {
     # Minimize gh API calls as they are time-consuming
     echo "${url/*\//#}"
   fi
-}
-
-# Executes a GraphQL query for Discussion search using the provided information
-# Returns the found number or raises an error
-process_discussion() {
-  local title="$1" updated_short="$2" repo_full_name="$3"
-  local graphql_query_discussion
-  # https://docs.github.com/en/search-github/searching-on-github/searching-discussions
-  graphql_query_discussion=$'query ($filter: String!) {
-        search(query: $filter, type: DISCUSSION, first: 1) { nodes { ... on Discussion { number }}}}'
-  command gh api graphql \
-    --cache=100h \
-    --raw-field query="$graphql_query_discussion" \
-    --raw-field filter="\"$title\" in:title updated:>=$updated_short repo:$repo_full_name" \
-    --jq '.data.search.nodes | "#\(.[].number)"' || die "Failed GraphQL discussion query."
 }
 
 highlight_output() {
@@ -539,7 +522,7 @@ select_notif() {
   # Export functions to child processes. 'fzf' executes commands with $SHELL -c; to ensure
   # compatibility when the default shell is not bash, set 'SHELL="$(which bash)"'.
   export -f print_help_text print_notifs get_notifs
-  export -f process_page process_discussion process_url gh_rest_api
+  export -f process_page process_url gh_rest_api
   export -f highlight_output open_in_browser view_notification view_in_pager
   export -f mark_all_read mark_individual_read
   # The 'die' function is not exported because 'fzf' warns you about the error in
