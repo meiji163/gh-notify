@@ -1,9 +1,10 @@
 <div align="center">
 
 # GitHub CLI Notification Extension
+
 A [gh](https://github.com/cli/cli) extension to view your GitHub notifications from the command line.
 
-https://github.com/meiji163/gh-notify/assets/92653266/b7d7fcdb-8a25-43fc-8f63-d11f30960084
+<https://github.com/meiji163/gh-notify/assets/92653266/b7d7fcdb-8a25-43fc-8f63-d11f30960084>
 
  </div>
 
@@ -21,6 +22,7 @@ gh ext remove meiji163/gh-notify
 ```
 
 To use `gh notify` interactively, install these tools as well:
+
 - [Fuzzy Finder (fzf)](https://github.com/junegunn/fzf#installation) - This allows for
   interaction with listed data.
 - [Python](https://www.python.org/) - In cases where `gh` can't open the `URL` in your browser, this
@@ -82,6 +84,7 @@ gh notify [Flags]
 ## Customizations
 
 ### Fuzzy Finder (fzf)
+
 You can customize the `fzf` key bindings by exporting `ENVIRONMENT VARIABLES` to your `.bashrc` or
 `.zshrc`. For `AVAILABLE KEYS/ EVENTS`, refer to the `fzf` man page or visit
 [junegunn/fzf#environment-variables](https://github.com/junegunn/fzf#environment-variables) on
@@ -102,6 +105,7 @@ export FZF_DEFAULT_OPTS="
 ```
 
 #### GH_NOTIFY_FZF_OPTS
+
 This environment variable lets you specify additional options and key bindings to customize the
 search and display of notifications. Unlike `FZF_DEFAULT_OPTS`, `GH_NOTIFY_FZF_OPTS` specifically
 applies to the `gh notify` extension.
@@ -118,6 +122,7 @@ GH_NOTIFY_FZF_OPTS="--height=~100%" gh notify -an 5
 ```
 
 #### Modifying Keybindings
+
 You can also customize the keybindings created by this extension to avoid conflicts with
 the ones defined by `fzf`. For example, change `ctrl-p` to `ctrl-u`:
 
@@ -126,6 +131,7 @@ GH_NOTIFY_VIEW_PATCH_KEY="ctrl-u" gh notify
 ```
 
 Or, switch the binding for toggling a notification and toggling the preview.
+
 ```sh
 GH_NOTIFY_TOGGLE_KEY="tab" GH_NOTIFY_TOGGLE_PREVIEW_KEY="ctrl-y" gh notify
 ```
@@ -137,6 +143,7 @@ man --pager='less -p "^\s+AVAILABLE_KEYS"' fzf
 ```
 
 ### GitHub Command Line Tool (gh)
+
 In the `gh` tool's config file, you can specify your preferred editor. This is particularly useful
 when you use the <kbd>ctrl</kbd><kbd>x</kbd> hotkey to comment on a notification.
 
