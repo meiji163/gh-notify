@@ -314,7 +314,7 @@ print_notifs() {
 # Processes a page of GitHub notifications, extracting and formatting relevant details.
 process_page() {
   local page="$1"
-  while IFS=$'\t' read -r updated_short iso8601 thread_id thread_state \
+  while IFS=$'\t' read -r _ iso8601 thread_id thread_state \
     comment_url repo_full_name unread_symbol timefmt repo_abbreviated type url reason \
     title; do
     local number="" modified_type
@@ -644,13 +644,29 @@ check_version() {
 
 update_subscription() {
   local graphql_query_resource=$'query ($url_input: URI!) {resource(url: $url_input) { ... on Subscribable { __typename id viewerCanSubscribe viewerSubscription }}}'
+  # discussions need their own query, as they can't handle 'resource(url:)'
+  local graphql_query_discussion=$'query ($owner: String!, $name: String!, $number: Int!) {repository(owner: $owner, name: $name) { discussion(number: $number) { ... on Subscribable { __typename id viewerCanSubscribe viewerSubscription }}}}'
   local graphql_mutation_update_subscription=$'mutation ($updated_state: SubscriptionState!, $node_id: ID!) { updateSubscription(input: {state: $updated_state, subscribableId: $node_id}) { subscribable { viewerSubscription }}}'
   local graphql_query_subscribable=$'{ __type(name: "Subscribable") { possibleTypes { name }}}'
-  local requested_state updated_state update_text possibleTypes
-  if IFS=$'\t' read -r object_type node_id viewer_can_subscribe viewer_subscription < <(command gh api graphql \
+  local requested_state updated_state update_text possibleTypes fetch_ok=false
+  local object_type node_id viewer_can_subscribe viewer_subscription
+  if [[ $update_subscription_url =~ ^(https?://)?(www\.)?github\.com/([^/]+)/([^/]+)/discussions/([0-9]+)/?$ ]]; then
+    if IFS=$'\t' read -r object_type node_id viewer_can_subscribe viewer_subscription < <(command gh api graphql \
+      --raw-field owner="${BASH_REMATCH[3]}" \
+      --raw-field name="${BASH_REMATCH[4]}" \
+      --field number="${BASH_REMATCH[5]}" \
+      --raw-field query="${graphql_query_discussion}" \
+      --jq '.data.repository.discussion | map(.) | @tsv'); then
+      fetch_ok=true
+    fi
+  elif IFS=$'\t' read -r object_type node_id viewer_can_subscribe viewer_subscription < <(command gh api graphql \
     --raw-field url_input="$update_subscription_url" \
-    --raw-field query="$graphql_query_resource" \
+    --raw-field query="${graphql_query_resource}" \
     --jq '.data.resource | map(.) | @tsv'); then
+    fetch_ok=true
+  fi
+
+  if $fetch_ok; then
     if [[ -z $object_type ]]; then
       die "Your input appears to be an invalid URL: '$update_subscription_url'."
     elif [[ $viewer_subscription != "SUBSCRIBED" && ! $viewer_can_subscribe ]]; then
@@ -684,9 +700,9 @@ update_subscription() {
     # a design decision by GitHub.
     requested_state=$updated_state
     updated_state=$(command gh api graphql \
-      --raw-field updated_state="$updated_state" \
-      --raw-field node_id="$node_id" \
-      --raw-field query="$graphql_mutation_update_subscription" \
+      --raw-field updated_state="${updated_state}" \
+      --raw-field node_id="${node_id}" \
+      --raw-field query="${graphql_mutation_update_subscription}" \
       --jq '.data.updateSubscription.subscribable.viewerSubscription') ||
       die "Failed GraphQL mutation to update the subscription status."
     [[ -z $updated_state ]] && updated_state="${requested_state}"
@@ -696,7 +712,7 @@ update_subscription() {
     printf "%b%s%b\n" "$DARK_GRAY" "$update_subscription_url" "$NC"
     exit 0
   else
-    possibleTypes=$(command gh api graphql --raw-field query="$graphql_query_subscribable" \
+    possibleTypes=$(command gh api graphql --raw-field query="${graphql_query_subscribable}" \
       --jq '.data.__type.possibleTypes | map(.name) | join(", ")' ||
       die "Failed GraphQL query for possibleTypes.")
     die "$(
